@@ -278,7 +278,26 @@ export async function fetchCloudEmails(email) {
 
         const decodeMime = (str) => {
           if (!str || typeof str !== 'string') return '';
-          const normalized = str.replace(/(\?=\s+(?==\?))/g, '?=');
+          let s = str;
+          if (s.includes('=3D') || s.includes('=20') || s.includes('=C3=') || s.includes('=\r\n') || s.includes('=\n')) {
+            try {
+              const stripped = s.replace(/=[\r\n]+/g, '');
+              const bytes = [];
+              for (let i = 0; i < stripped.length; i++) {
+                if (stripped[i] === '=' && i + 2 < stripped.length) {
+                  const hex = stripped.substring(i + 1, i + 3);
+                  if (/^[0-9A-Fa-f]{2}$/.test(hex)) {
+                    bytes.push(parseInt(hex, 16));
+                    i += 2;
+                    continue;
+                  }
+                }
+                bytes.push(stripped.charCodeAt(i));
+              }
+              s = new TextDecoder('utf-8').decode(new Uint8Array(bytes));
+            } catch {}
+          }
+          const normalized = s.replace(/(\?=\s+(?==\?))/g, '?=');
           return normalized.replace(/=\?([^?]+)\?([BQbq])\?([^?]+)\?=/g, (match, charset, encoding, text) => {
             try {
               const enc = encoding.toUpperCase();
@@ -304,6 +323,10 @@ export async function fetchCloudEmails(email) {
         const cleanSubject = decodeMime(rawSubject);
         const rawSender = row.sender_name || 'Người gửi';
         const cleanSender = decodeMime(rawSender);
+        let cleanBody = row.body_html || `<p>${row.snippet}</p>`;
+        if (cleanBody.includes('=3D') || cleanBody.includes('=20') || cleanBody.includes('=C3=')) {
+          cleanBody = decodeMime(cleanBody);
+        }
 
         return {
           id: row.id,
@@ -321,7 +344,7 @@ export async function fetchCloudEmails(email) {
           tagColor: row.tag_color || (row.folder === 'sent' ? '#6366f1' : '#ec4899'),
           date: new Date(row.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           timestamp: new Date(row.created_at).getTime(),
-          body: row.body_html || `<p>${row.snippet}</p>`
+          body: cleanBody
         };
       });
     }

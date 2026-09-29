@@ -123,37 +123,112 @@ function decodeMimeWord(str) {
   });
 }
 
-// Clean MIME body extraction for incoming Cloudflare emails
+// Decode Quoted-Printable (RFC 2045)
+function decodeQuotedPrintable(str) {
+  if (!str || typeof str !== 'string') return '';
+  const stripped = str.replace(/=[\r\n]+/g, '');
+  const bytes = [];
+  for (let i = 0; i < stripped.length; i++) {
+    if (stripped[i] === '=' && i + 2 < stripped.length) {
+      const hex = stripped.substring(i + 1, i + 3);
+      if (/^[0-9A-Fa-f]{2}$/.test(hex)) {
+        bytes.push(parseInt(hex, 16));
+        i += 2;
+        continue;
+      }
+    }
+    bytes.push(stripped.charCodeAt(i));
+  }
+  try {
+    return new TextDecoder('utf-8').decode(new Uint8Array(bytes));
+  } catch {
+    return stripped;
+  }
+}
+
+// Decode Base64 (RFC 2045)
+function decodeBase64(str, charset = 'utf-8') {
+  if (!str || typeof str !== 'string') return '';
+  try {
+    const clean = str.replace(/[^A-Za-z0-9+/=]/g, '');
+    const binStr = atob(clean);
+    const bytes = Uint8Array.from(binStr, c => c.charCodeAt(0));
+    return new TextDecoder(charset).decode(bytes);
+  } catch {
+    return str;
+  }
+}
+
+function makeCleanSnippet(htmlOrText) {
+  if (!htmlOrText) return '';
+  const noStyle = htmlOrText.replace(/<style[\s\S]*?<\/style>/gi, '').replace(/<script[\s\S]*?<\/script>/gi, '');
+  const noTags = noStyle.replace(/<[^>]+>/g, ' ');
+  const clean = noTags.replace(/\s+/g, ' ').trim();
+  return clean.substring(0, 110) + (clean.length > 110 ? '...' : '');
+}
+
+// Clean MIME body extraction for incoming Cloudflare emails (RFC 2045 / RFC 2046)
 function extractCleanEmailContent(raw) {
   if (!raw) return { snippet: '', html: '' };
-  
-  // Try to extract HTML body
-  const htmlMatch = raw.match(/Content-Type:\s*text\/html[^;]*;?[^\r\n]*\r?\n(?:[^\r\n]+\r?\n)*\r?\n([\s\S]*?)(?=(?:\r?\n--[^\r\n]+|\r?\n\.\r?\n|$))/i);
-  if (htmlMatch && htmlMatch[1]) {
-    const cleanHtml = htmlMatch[1].trim();
-    const plainText = cleanHtml.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+
+  const getEncoding = (partHeader) => {
+    const match = partHeader.match(/Content-Transfer-Encoding:\s*([^\r\n;]+)/i);
+    return match ? match[1].trim().toLowerCase() : '';
+  };
+  const getCharset = (partHeader) => {
+    const match = partHeader.match(/charset=["']?([a-zA-Z0-9_-]+)["']?/i);
+    return match ? match[1].trim().toLowerCase() : 'utf-8';
+  };
+
+  // 1. Try to extract HTML body
+  const htmlMatch = raw.match(/Content-Type:\s*text\/html([\s\S]*?)\r?\n\r?\n([\s\S]*?)(?=(?:\r?\n--[^\r\n]+|\r?\n\.\r?\n|$))/i);
+  if (htmlMatch && htmlMatch[2]) {
+    const partHeader = htmlMatch[1] || '';
+    let cleanHtml = htmlMatch[2].trim();
+    const encoding = getEncoding(partHeader);
+    const charset = getCharset(partHeader);
+
+    if (encoding === 'quoted-printable' || cleanHtml.includes('=3D') || cleanHtml.includes('=20') || cleanHtml.includes('=C3=')) {
+      cleanHtml = decodeQuotedPrintable(cleanHtml);
+    } else if (encoding === 'base64') {
+      cleanHtml = decodeBase64(cleanHtml, charset);
+    }
+
     return {
-      snippet: plainText.substring(0, 100) + '...',
+      snippet: makeCleanSnippet(cleanHtml),
       html: cleanHtml
     };
   }
 
-  // Try to extract plain text body
-  const textMatch = raw.match(/Content-Type:\s*text\/plain[^;]*;?[^\r\n]*\r?\n(?:[^\r\n]+\r?\n)*\r?\n([\s\S]*?)(?=(?:\r?\n--[^\r\n]+|\r?\n\.\r?\n|$))/i);
-  if (textMatch && textMatch[1]) {
-    const cleanText = textMatch[1].trim();
+  // 2. Try to extract plain text body
+  const textMatch = raw.match(/Content-Type:\s*text\/plain([\s\S]*?)\r?\n\r?\n([\s\S]*?)(?=(?:\r?\n--[^\r\n]+|\r?\n\.\r?\n|$))/i);
+  if (textMatch && textMatch[2]) {
+    const partHeader = textMatch[1] || '';
+    let cleanText = textMatch[2].trim();
+    const encoding = getEncoding(partHeader);
+    const charset = getCharset(partHeader);
+
+    if (encoding === 'quoted-printable' || cleanText.includes('=3D') || cleanText.includes('=20') || cleanText.includes('=C3=')) {
+      cleanText = decodeQuotedPrintable(cleanText);
+    } else if (encoding === 'base64') {
+      cleanText = decodeBase64(cleanText, charset);
+    }
+
     return {
-      snippet: cleanText.substring(0, 100).replace(/\r?\n/g, ' ') + '...',
+      snippet: makeCleanSnippet(cleanText),
       html: `<div style="padding: 16px; font-family: sans-serif; line-height: 1.6; color: #1e293b;">${escapeHtml(cleanText).replace(/\n/g, '<br>')}</div>`
     };
   }
 
-  // Fallback: strip headers after double newline
+  // 3. Fallback: strip headers after double newline
   const headerSplit = raw.split(/\r?\n\r?\n/);
-  const bodyContent = headerSplit.length > 1 ? headerSplit.slice(1).join('\n\n') : raw;
-  const cleanSnippet = bodyContent.substring(0, 100).replace(/\r?\n/g, ' ');
+  let bodyContent = headerSplit.length > 1 ? headerSplit.slice(1).join('\n\n') : raw;
+  if (bodyContent.includes('=3D') || bodyContent.includes('=20') || bodyContent.includes('=C3=')) {
+    bodyContent = decodeQuotedPrintable(bodyContent);
+  }
+
   return {
-    snippet: cleanSnippet + '...',
+    snippet: makeCleanSnippet(bodyContent),
     html: `<div style="padding: 16px; font-family: sans-serif; line-height: 1.6; color: #1e293b;"><pre style="white-space: pre-wrap; font-family: sans-serif;">${escapeHtml(bodyContent.trim())}</pre></div>`
   };
 }
@@ -355,10 +430,15 @@ export default {
         const reqUsername = email.trim().toLowerCase().split('@')[0];
         const reqDomain = email.trim().toLowerCase().split('@')[1];
 
-        // Authorized if exact match OR matching username across any ecosystem domain
+        // Owner check: 'loc' or 'locpnv01'
+        const isOwner = ['loc', 'locpnv01'].includes(payloadUsername.toLowerCase());
+        const isReqOwner = ['loc', 'locpnv01'].includes(reqUsername.toLowerCase());
+
+        // Authorized if exact match OR matching username across any ecosystem domain OR owner accessing domain
         const isAuthorized = payload && (
           payload.email.toLowerCase() === email.trim().toLowerCase() ||
-          (payloadUsername.toLowerCase() === reqUsername.toLowerCase() && ALLOWED_DOMAINS.includes(reqDomain))
+          (payloadUsername.toLowerCase() === reqUsername.toLowerCase() && ALLOWED_DOMAINS.includes(reqDomain)) ||
+          (isOwner && isReqOwner && ALLOWED_DOMAINS.includes(reqDomain))
         );
 
         if (!isAuthorized) {
@@ -368,18 +448,44 @@ export default {
           });
         }
 
+        const effectiveUserId = payload.userId || payload.id || '';
+        const userIds = [effectiveUserId].filter(Boolean);
+        if (isOwner) {
+          if (!userIds.includes('user-locpnv01')) userIds.push('user-locpnv01');
+          if (!userIds.includes('user-0')) userIds.push('user-0');
+        }
+
         const usernamePrefix = reqUsername + '@%';
+        const aliasPattern = isOwner ? 'loc%' : usernamePrefix;
+        const inPlaceholders = userIds.map(() => '?').join(', ') || "''";
+
         const results = await env.DB.prepare(`
           SELECT id, user_id, recipient_email, sender_name, sender_email, sender_avatar, subject, snippet, body_html, folder, is_read, is_starred, tag, tag_color, created_at
           FROM emails 
-          WHERE (user_id = ? AND user_id IS NOT NULL AND user_id != '')
+          WHERE (user_id IN (${inPlaceholders}) AND user_id IS NOT NULL AND user_id != '')
              OR LOWER(recipient_email) = LOWER(?)
              OR (LOWER(sender_email) = LOWER(?) AND folder = 'sent')
              OR (LOWER(recipient_email) LIKE LOWER(?))
           ORDER BY created_at DESC
-        `).bind(payload.id || '', email.trim(), email.trim(), usernamePrefix).all();
+        `).bind(...userIds, email.trim(), email.trim(), aliasPattern).all();
 
-        return new Response(JSON.stringify({ emails: results.results || [] }), {
+        const cleanedEmails = (results.results || []).map(m => {
+          let body = m.body_html || '';
+          let snip = m.snippet || '';
+          if (body.includes('=3D') || body.includes('=20') || body.includes('=C3=')) {
+            body = decodeQuotedPrintable(body);
+          }
+          if (snip.includes('=3D') || snip.includes('=20') || snip.includes('=C3=')) {
+            snip = decodeQuotedPrintable(snip);
+          }
+          return {
+            ...m,
+            snippet: snip,
+            body_html: body
+          };
+        });
+
+        return new Response(JSON.stringify({ emails: cleanedEmails }), {
           headers: responseHeaders
         });
       }
@@ -600,10 +706,24 @@ export default {
         `).bind(recipientUserPart).first();
       }
 
-      // If user not specifically registered yet, fallback to primary admin or first registered user
-      // so no incoming email is ever lost!
+      // Check owner aliases (loc, locpnv01, etc.)
+      if (!user && (recipientUserPart.startsWith('loc') || recipientUserPart.includes('loc') || recipientDomain === 'luuvan.online')) {
+        user = await env.DB.prepare(`
+          SELECT id, email, username FROM users 
+          WHERE username IN ('locpnv01', 'loc') 
+          ORDER BY (CASE WHEN username = 'locpnv01' THEN 1 WHEN username = 'loc' THEN 2 ELSE 3 END) 
+          LIMIT 1
+        `).first();
+      }
+
+      // Ultimate catch-all fallback: deliver to owner so no email is ever lost!
       if (!user) {
-        user = await env.DB.prepare(`SELECT id, email, username FROM users ORDER BY created_at ASC LIMIT 1`).first();
+        user = await env.DB.prepare(`
+          SELECT id, email, username FROM users 
+          WHERE username NOT LIKE 'sec_test%' 
+          ORDER BY (CASE WHEN username = 'locpnv01' THEN 1 WHEN username = 'loc' THEN 2 ELSE 3 END), created_at ASC 
+          LIMIT 1
+        `).first();
       }
 
       const userId = user ? user.id : 'inbound-guest';
