@@ -1,0 +1,27 @@
+# Lưu Vân Mail (luuvan.online)
+> Dịch Vụ Webmail Đa Miền Chuyên Nghiệp Phong Cách Soft Pastel Kawaii, Bảo Mật Cao Trên Cloudflare Edge
+
+## Giới thiệu tổng quan
+Lưu Vân Mail (trang chủ chính: https://luuvan.online) là nền tảng dịch vụ thư điện tử (Webmail) hiện đại, an toàn và thân thiện, kết hợp hoàn hảo giữa giao diện Pastel thẩm mỹ cao và hạ tầng điện toán đám mây Cloudflare D1 Serverless SQL.
+
+Hệ sinh thái cung cấp giải pháp email đa mục đích thông qua 4 tên miền thương hiệu:
+1. `luuvan.online`: Dành cho Học tập, Tri thức, Nghiên cứu và Lập trình viên (Linh vật: Mèo Học Giả Luna).
+2. `aetherix.site`: Dành cho Công việc, Doanh nghiệp số, AI & Cloud Computing (Linh vật: Mèo Hoàng Tử Aether).
+3. `chotroi.site`: Dành cho Giao thương trực tuyến, Sàn MMO, E-commerce (Linh vật: Gấu Đầu Bếp Kuma).
+4. `aadidass.tokyo`: Dành cho Game thủ, Thể thao điện tử, Giải trí & Anime (Linh vật: Thỏ Cà Rốt Midori).
+
+## Tính năng bảo mật nổi bật (Security Standards)
+- **Cổng Xác Thực Bắt Buộc (Auth Gate)**: Ngăn chặn tuyệt đối truy cập trái phép. Mọi người dùng phải có tài khoản và mật khẩu bảo vệ.
+- **Mã Hóa Mật Khẩu**: Salted SHA-256 Web Crypto hashing.
+- **Xác Thực Phiên Làm Việc**: HMAC-SHA256 Signed JWT Token.
+- **Phòng Chống Tấn Công (Anti-Exploit)**: DOMParser HTML Sanitization chống Stored/DOM XSS, Parameterized SQL chống SQL Injection, IP sliding rate limiting chống Brute-force.
+- **Security Headers Chuẩn OWASP**: Content-Security-Policy (CSP), X-Frame-Options (DENY chống Clickjacking), X-Content-Type-Options: nosniff, Referrer-Policy.
+
+## Hướng dẫn sử dụng
+- Truy cập trang chủ: https://luuvan.online
+- Đăng ký hòm thư mới: Chọn tên tài khoản (username), chọn đuôi tên miền trong số 4 domain tương ứng, đặt mật khẩu và nhận thư chào mừng.
+- Đăng nhập: Nhập địa chỉ email đầy đủ và mật khẩu để quản lý hộp thư đến, gắn sao, soạn thư và gửi nhận thư.
+
+## Tài liệu chi tiết
+- Chi tiết kỹ thuật đầy đủ: https://luuvan.online/llms-full.txt
+- Kho mã nguồn mở: https://github.com/xomno01/luuvan-mail

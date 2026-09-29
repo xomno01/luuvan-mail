@@ -1,0 +1,28 @@
+# Lưu Vân Mail — Full System Specification & Documentation
+
+- Title: Lưu Vân Mail Webmail Service
+- Canonical URL: https://luuvan.online
+- Repository: https://github.com/xomno01/luuvan-mail
+- Status: Production Online
+- Architecture: Cloudflare Workers, Cloudflare D1 (SQL), Cloudflare Email Routing, Vanilla JS / Vite Frontend
+
+## 1. Domain Directory & Intended Uses
+| Tên Miền | Chuyên Mục | Linh Vật Đại Diện | Màu Sắc Chủ Đạo |
+|---|---|---|---|
+| luuvan.online (Flagship) | Học tập, Nghiên cứu, Dev & Coding | Mèo Luna | Xanh tím Lavender & Chàm |
+| aetherix.site | AI, Cloud, Doanh nghiệp & Startup | Mèo Aether | Xanh ngọc Mint & Cyan |
+| chotroi.site | MMO, Thương mại điện tử, Mua bán | Gấu Kuma | Vàng mật ong Honey & Hổ phách |
+| aadidass.tokyo | Gaming, Giải trí, Streamer | Thỏ Midori | Hồng Sakura & Xanh lá Mạ |
+
+## 2. API Reference & Security
+- `POST /api/auth/register`: Đăng ký tài khoản với username, domain, passwordHash. Trả về JWT token và thông tin user. Giới hạn 15 req/phút/IP.
+- `POST /api/auth/login`: Xác thực với email và passwordHash. Trả về JWT token có chữ ký HMAC-SHA256. Giới hạn 20 req/phút/IP.
+- `GET /api/emails?email={email}`: Lấy danh sách email của người dùng. Yêu cầu `Authorization: Bearer <token>` khớp với email yêu cầu.
+- `POST /api/emails/send`: Soạn và lưu email gửi đi. Yêu cầu Bearer token.
+- `email(message, env, ctx)`: Handler bắt sự kiện Inbound Cloudflare Email Routing tự động lưu thư nhận được vào bảng `emails` trong cơ sở dữ liệu Cloudflare D1 `pastelmail-db`.
+
+## 3. SEO, SDO & Semantic Structure
+- HTML5 Semantic Architecture (header, main, aside, section, article, nav).
+- JSON-LD Structured Data: SoftwareApplication, WebSite, Organization, FAQPage.
+- Open Graph & Twitter Cards enabled for high social preview engagement.
+- Zero External Tracker, Strict Privacy, OWASP Top 10 compliance.

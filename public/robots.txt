@@ -1,0 +1,40 @@
+# robots.txt for Lưu Vân Mail Ecosystem (https://luuvan.online)
+# Optimized for Web Crawlers, Search Engines (SEO) & AI Engines (AEO, GEO, AIO)
+
+User-agent: *
+Allow: /
+Disallow: /api/
+
+# Specialized Search Engine Bots (SEO / SXO)
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: YandexBot
+Allow: /
+
+User-agent: Applebot
+Allow: /
+
+# Generative AI & Answer Engine Crawlers (AEO / GEO / AIO)
+User-agent: GPTBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: CCBot
+Allow: /
+
+Sitemap: https://luuvan.online/sitemap.xml

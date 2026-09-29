@@ -1,7 +1,7 @@
 import confetti from 'canvas-confetti';
 import { defaultEmails } from './data/mockEmails.js';
 import { domainsData } from './data/domains.js';
-import { initAuth, loginUser, registerUser, getSession, clearSession } from './services/auth.js';
+import { initAuth, loginUser, registerUser, getSession, clearSession, fetchCloudEmails, getAuthToken } from './services/auth.js';
 
 // State
 let emails = JSON.parse(localStorage.getItem('pastelmail_emails_v1')) || defaultEmails;
@@ -20,6 +20,63 @@ function saveEmails() {
   localStorage.setItem('pastelmail_emails_v1', JSON.stringify(emails));
 }
 
+// Escape plain text for HTML interpolation
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+// Native Robust HTML Sanitizer against XSS (DOMParser based)
+function sanitizeEmailHtml(dirty) {
+  if (!dirty) return '';
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(dirty, 'text/html');
+
+    // 1. Remove dangerous script and executable tags
+    const dangerousTags = ['script', 'iframe', 'object', 'embed', 'applet', 'meta', 'link', 'style', 'base', 'form', 'input', 'textarea', 'button'];
+    dangerousTags.forEach(tag => {
+      doc.querySelectorAll(tag).forEach(el => el.remove());
+    });
+
+    // 2. Strip event handlers and suspicious URI schemes
+    doc.querySelectorAll('*').forEach(el => {
+      Array.from(el.attributes).forEach(attr => {
+        const name = attr.name.toLowerCase();
+        const value = attr.value.trim().toLowerCase();
+
+        // Remove any on* attributes (onclick, onerror, onload, etc.)
+        if (name.startsWith('on') || name === 'srcdoc') {
+          el.removeAttribute(attr.name);
+        }
+
+        // Block javascript: and vbscript: URIs
+        if (['href', 'src', 'action', 'data', 'xlink:href'].includes(name)) {
+          if (value.startsWith('javascript:') || value.startsWith('vbscript:') || value.startsWith('data:text/html')) {
+            el.removeAttribute(attr.name);
+          }
+        }
+      });
+
+      // Sandbox links
+      if (el.tagName.toLowerCase() === 'a') {
+        el.setAttribute('target', '_blank');
+        el.setAttribute('rel', 'noopener noreferrer');
+      }
+    });
+
+    return doc.body.innerHTML;
+  } catch (e) {
+    console.error('Sanitizer fallback error:', e);
+    return `<p>${escapeHtml(dirty)}</p>`;
+  }
+}
+
 // Toast
 function showToast(message) {
   const toast = document.getElementById('toast-notice');
@@ -31,7 +88,7 @@ function showToast(message) {
 
 // Apply Domain Theme
 function applyTheme(domainKey) {
-  const data = domainsData[domainKey] || domainsData['aadidass.tokyo'];
+  const data = domainsData[domainKey] || domainsData['luuvan.online'] || domainsData['aadidass.tokyo'];
   const root = document.documentElement;
 
   root.style.setProperty('--theme-primary', data.colors.primary);
@@ -58,8 +115,34 @@ function applyTheme(domainKey) {
   document.getElementById('compose-from-email').textContent = currentUser?.email || `user@${domainKey}`;
 }
 
+// Sync Cloud Emails
+async function syncCloudData() {
+  if (!currentUser?.email) return;
+  try {
+    const cloudMails = await fetchCloudEmails(currentUser.email);
+    if (cloudMails && cloudMails.length > 0) {
+      // Merge unique cloud emails with local emails
+      const existingIds = new Set(emails.map(m => m.id));
+      let added = 0;
+      for (const cm of cloudMails) {
+        if (!existingIds.has(cm.id)) {
+          emails.unshift(cm);
+          existingIds.add(cm.id);
+          added++;
+        }
+      }
+      if (added > 0) {
+        saveEmails();
+        renderMailList();
+      }
+    }
+  } catch (err) {
+    console.warn('Sync cloud error:', err);
+  }
+}
+
 // Switch between Auth Gate and Webmail App
-function setAuthState(user) {
+async function setAuthState(user) {
   currentUser = user;
   const authGate = document.getElementById('auth-gate-container');
   const webmailApp = document.getElementById('webmail-app');
@@ -70,6 +153,7 @@ function setAuthState(user) {
     applyTheme(user.domain);
     closeReaderView();
     renderMailList();
+    await syncCloudData();
   } else {
     authGate.style.display = 'flex';
     webmailApp.classList.remove('active');
@@ -118,10 +202,10 @@ function renderMailList() {
   updateBadges();
 
   if (list.length === 0) {
-    const data = domainsData[currentUser.domain];
+    const data = domainsData[currentUser.domain] || domainsData['luuvan.online'];
     container.innerHTML = `
       <div class="empty-state">
-        <img src="${data.mascot.avatar}" alt="${data.mascot.name}" />
+        <img src="${data.mascot.avatar}" alt="${escapeHtml(data.mascot.name)}" />
         <h3>Hộp thư trống trải!</h3>
         <p>Không có email nào trong mục này. Bấm "Soạn thư" để bắt đầu gửi thư nhé!</p>
       </div>
@@ -129,17 +213,18 @@ function renderMailList() {
     return;
   }
 
+  // Render with strict HTML escaping on user-provided strings
   container.innerHTML = list.map(m => `
-    <div class="mail-item-row ${m.read ? '' : 'unread'}" data-id="${m.id}">
-      <button class="mail-star-btn ${m.starred ? 'starred' : ''}" data-star-id="${m.id}" title="Gắn dấu sao">★</button>
-      <div class="mail-avatar">${m.senderAvatar || '✉️'}</div>
-      <div class="mail-sender">${m.senderName}</div>
+    <div class="mail-item-row ${m.read ? '' : 'unread'}" data-id="${escapeHtml(m.id)}">
+      <button class="mail-star-btn ${m.starred ? 'starred' : ''}" data-star-id="${escapeHtml(m.id)}" title="Gắn dấu sao">★</button>
+      <div class="mail-avatar">${escapeHtml(m.senderAvatar || '✉️')}</div>
+      <div class="mail-sender">${escapeHtml(m.senderName)}</div>
       <div class="mail-content-preview">
-        <span class="mail-subject">${m.subject}</span>
-        <span class="mail-snippet"> — ${m.snippet}</span>
+        <span class="mail-subject">${escapeHtml(m.subject)}</span>
+        <span class="mail-snippet"> — ${escapeHtml(m.snippet)}</span>
       </div>
-      <span class="mail-tag-badge" style="background: ${m.tagColor}15; color: ${m.tagColor};">${m.tag}</span>
-      <div class="mail-date">${m.date}</div>
+      <span class="mail-tag-badge" style="background: ${escapeHtml(m.tagColor)}15; color: ${escapeHtml(m.tagColor)};">${escapeHtml(m.tag)}</span>
+      <div class="mail-date">${escapeHtml(m.date)}</div>
     </div>
   `).join('');
 
@@ -164,7 +249,7 @@ function renderMailList() {
   });
 }
 
-// Open Email Reader View
+// Open Email Reader View (Secured)
 function openReaderView(emailId) {
   const mail = emails.find(x => x.id === emailId);
   if (!mail) return;
@@ -178,6 +263,7 @@ function openReaderView(emailId) {
   const readerView = document.getElementById('mail-reader-view');
   readerView.classList.add('active');
 
+  // Text content prevents any XSS in header details
   document.getElementById('reader-subject').textContent = mail.subject;
   document.getElementById('reader-tag-badge').textContent = mail.tag;
   document.getElementById('reader-tag-badge').style.background = `${mail.tagColor}20`;
@@ -191,7 +277,9 @@ function openReaderView(emailId) {
   const starBtn = document.getElementById('reader-star-btn');
   starBtn.classList.toggle('starred', mail.starred);
 
-  document.getElementById('reader-body-content').innerHTML = mail.body || `<p>${mail.snippet}</p>`;
+  // Body content passed through DOMParser-based HTML Sanitizer
+  const sanitizedBody = sanitizeEmailHtml(mail.body || `<p>${escapeHtml(mail.snippet)}</p>`);
+  document.getElementById('reader-body-content').innerHTML = sanitizedBody;
 }
 
 // Close Reader View
@@ -228,13 +316,30 @@ function initCompose() {
     windowEl.classList.toggle('minimized');
   });
 
-  form.addEventListener('submit', (e) => {
+  form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const to = document.getElementById('compose-to').value.trim();
     const subject = document.getElementById('compose-subject').value.trim();
     const body = document.getElementById('compose-body').value.trim();
 
     if (!to || !subject) return;
+
+    // Send via Cloudflare API if token exists
+    const token = getAuthToken();
+    if (token) {
+      try {
+        await fetch('/api/emails/send', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ to, subject, content: body })
+        });
+      } catch (err) {
+        console.warn('Backend send email notice:', err);
+      }
+    }
 
     const newMail = {
       id: 'sent-' + Date.now(),
@@ -251,7 +356,7 @@ function initCompose() {
       tagColor: '#6366f1',
       date: 'Vừa xong',
       timestamp: Date.now(),
-      body: `<div style="padding: 16px; font-family: sans-serif; line-height: 1.6;">${body.replace(/\n/g, '<br>')}</div>`
+      body: `<div style="padding: 16px; font-family: sans-serif; line-height: 1.6;">${escapeHtml(body).replace(/\n/g, '<br>')}</div>`
     };
 
     emails.unshift(newMail);
@@ -335,7 +440,10 @@ function initAuthGate() {
     const username = document.getElementById('reg-username').value.trim().toLowerCase().replace(/[^a-z0-9._-]/g, '');
     const pass = document.getElementById('reg-password').value;
 
-    if (!username) return;
+    if (!username) {
+      alert('Tên tài khoản không hợp lệ!');
+      return;
+    }
 
     try {
       const user = await registerUser({
@@ -358,7 +466,7 @@ function initAuthGate() {
   // Sign out button
   document.getElementById('btn-signout').addEventListener('click', () => {
     clearSession();
-    showToast('Đã đăng xuất khỏi hòm thư!');
+    showToast('Đã đăng xuất khỏi hòm thư an toàn!');
     setAuthState(null);
   });
 }
@@ -393,10 +501,11 @@ function setupEvents() {
   });
 
   // Refresh
-  document.getElementById('btn-refresh').addEventListener('click', () => {
+  document.getElementById('btn-refresh').addEventListener('click', async () => {
+    await syncCloudData();
     emails = JSON.parse(localStorage.getItem('pastelmail_emails_v1')) || defaultEmails;
     renderMailList();
-    showToast('Đã đồng bộ hòm thư!');
+    showToast('Đã đồng bộ hòm thư từ Cloudflare!');
   });
 
   // Mark all read
@@ -462,7 +571,7 @@ function setupEvents() {
   // Sidebar mascot speech click
   document.getElementById('sidebar-mascot-card').addEventListener('click', () => {
     if (!currentUser) return;
-    const data = domainsData[currentUser.domain];
+    const data = domainsData[currentUser.domain] || domainsData['luuvan.online'];
     const quotes = data.mascot.quotes;
     const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
     document.getElementById('sidebar-mascot-quote').textContent = randomQuote;

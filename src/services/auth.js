@@ -1,30 +1,65 @@
-// PastelMail Authentication & Session Service
+// PastelMail Authentication & Session Service (Security Hardened)
 import { defaultEmails } from '../data/mockEmails.js';
 
 const USERS_STORAGE_KEY = 'pastelmail_users_db_v1';
 const SESSION_KEY = 'pastelmail_active_session_v1';
+const TOKEN_KEY = 'pastelmail_jwt_token_v1';
+const APP_PASSWORD_SALT = 'luuvan_pastelmail_security_salt_2026';
 
-// Hash password with Web Crypto SHA-256
-export async function hashPassword(plainText) {
-  const msgUint8 = new TextEncoder().encode(plainText);
+// Cryptographic Salted SHA-256 Hash
+export async function hashPassword(plainText, salt = APP_PASSWORD_SALT) {
+  const enc = new TextEncoder();
+  // Hash combining input with application salt
+  const msgUint8 = enc.encode(`${plainText}:${salt}`);
   const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-// Initialize seed users if empty
+// Legacy hash without salt (to keep default seed test accounts functional)
+export async function hashPasswordLegacy(plainText) {
+  const enc = new TextEncoder();
+  const hashBuffer = await crypto.subtle.digest('SHA-256', enc.encode(plainText));
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// Token Storage
+export function getAuthToken() {
+  return localStorage.getItem(TOKEN_KEY) || '';
+}
+
+export function setAuthToken(token) {
+  if (token) localStorage.setItem(TOKEN_KEY, token);
+}
+
+export function clearAuthToken() {
+  localStorage.removeItem(TOKEN_KEY);
+}
+
+// Initialize seed users locally
 export async function initAuth() {
   let users = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY));
   if (!users || users.length === 0) {
-    const defaultPasswordHash = await hashPassword('123456');
+    const legacyPassHash = await hashPasswordLegacy('123456');
     users = [
+      {
+        id: 'user-0',
+        email: 'loc@luuvan.online',
+        username: 'loc',
+        domain: 'luuvan.online',
+        passwordHash: legacyPassHash,
+        mascot: 'Mèo Luna (Tri thức & Dev)',
+        avatar: '/assets/mascot_luuvan.webp',
+        createdAt: new Date().toISOString()
+      },
       {
         id: 'user-1',
         email: 'vinhloc@aadidass.tokyo',
         username: 'vinhloc',
         domain: 'aadidass.tokyo',
-        passwordHash: defaultPasswordHash,
-        mascot: 'Thỏ Midori (Game)',
+        passwordHash: legacyPassHash,
+        mascot: 'Thỏ Midori (Game & Giải trí)',
         avatar: '/assets/mascot_bunny.webp',
         createdAt: new Date().toISOString()
       },
@@ -33,7 +68,7 @@ export async function initAuth() {
         email: 'admin@aetherix.site',
         username: 'admin',
         domain: 'aetherix.site',
-        passwordHash: defaultPasswordHash,
+        passwordHash: legacyPassHash,
         mascot: 'Mèo Aether (AI & Cloud)',
         avatar: '/assets/mascot_aetherix.webp',
         createdAt: new Date().toISOString()
@@ -43,19 +78,9 @@ export async function initAuth() {
         email: 'shop@chotroi.site',
         username: 'shop',
         domain: 'chotroi.site',
-        passwordHash: defaultPasswordHash,
-        mascot: 'Gấu Kuma (MMO)',
+        passwordHash: legacyPassHash,
+        mascot: 'Gấu Kuma (MMO & Bazaar)',
         avatar: '/assets/mascot_chotroi.webp',
-        createdAt: new Date().toISOString()
-      },
-      {
-        id: 'user-4',
-        email: 'reader@luuvan.online',
-        username: 'reader',
-        domain: 'luuvan.online',
-        passwordHash: defaultPasswordHash,
-        mascot: 'Mèo Luna (Tri thức)',
-        avatar: '/assets/mascot_luuvan.webp',
         createdAt: new Date().toISOString()
       }
     ];
@@ -64,21 +89,19 @@ export async function initAuth() {
   return users;
 }
 
-// Register a new user
+// Register a new user (Cloud D1 sync + Local fallback)
 export async function registerUser({ username, domain, password, mascotName, mascotAvatar }) {
   const users = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY)) || [];
-  const fullEmail = `${username.toLowerCase()}@${domain}`;
+  const cleanUsername = username.trim().toLowerCase().replace(/[^a-z0-9._-]/g, '');
+  const fullEmail = `${cleanUsername}@${domain}`;
+  const userId = 'user-' + Date.now();
 
-  // Check duplicate
-  if (users.some(u => u.email.toLowerCase() === fullEmail.toLowerCase())) {
-    throw new Error(`Email "${fullEmail}" đã được đăng ký bởi người dùng khác. Vui lòng chọn tên khác!`);
-  }
-
+  // Try salted hash first
   const passwordHash = await hashPassword(password);
   const newUser = {
-    id: 'user-' + Date.now(),
+    id: userId,
     email: fullEmail,
-    username,
+    username: cleanUsername,
     domain,
     passwordHash,
     mascot: mascotName,
@@ -86,10 +109,46 @@ export async function registerUser({ username, domain, password, mascotName, mas
     createdAt: new Date().toISOString()
   };
 
+  // 1. Call Backend API if available
+  try {
+    const res = await fetch('/api/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: userId,
+        email: fullEmail,
+        username: cleanUsername,
+        domain,
+        passwordHash,
+        mascotName,
+        mascotAvatar
+      })
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      if (data.token) setAuthToken(data.token);
+    } else {
+      const errData = await res.json().catch(() => ({}));
+      if (errData.error && errData.error.includes('đã tồn tại')) {
+        throw new Error(errData.error);
+      }
+    }
+  } catch (apiErr) {
+    if (apiErr.message && apiErr.message.includes('đã tồn tại')) {
+      throw apiErr;
+    }
+    console.warn('Backend sync warning (offline/local fallback):', apiErr);
+  }
+
+  // 2. Save locally
+  if (users.some(u => u.email.toLowerCase() === fullEmail.toLowerCase())) {
+    throw new Error(`Email "${fullEmail}" đã được đăng ký bởi người dùng khác. Vui lòng chọn tên khác!`);
+  }
   users.unshift(newUser);
   localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
 
-  // Seed a welcome email for this new user
+  // Seed welcome email
   const emails = JSON.parse(localStorage.getItem('pastelmail_emails_v1')) || defaultEmails;
   emails.unshift({
     id: 'welcome-' + Date.now(),
@@ -97,10 +156,10 @@ export async function registerUser({ username, domain, password, mascotName, mas
     folder: 'inbox',
     starred: true,
     read: false,
-    senderName: 'Ban Quản Trị PastelMail',
+    senderName: 'Ban Quản Trị Lưu Vân Mail',
     senderEmail: `admin@${domain}`,
     senderAvatar: '🌸',
-    subject: `Chào mừng ${username} đến với hòm thư ${fullEmail}!`,
+    subject: `Chào mừng ${cleanUsername} đến với hòm thư ${fullEmail}! ✨`,
     snippet: 'Hộp thư của bạn đã được kích hoạt thành công trên hạ tầng bảo mật Cloudflare...',
     tag: 'Chào Mừng',
     tagColor: '#db2777',
@@ -110,40 +169,127 @@ export async function registerUser({ username, domain, password, mascotName, mas
       <div style="background: #fdf2f8; padding: 24px; border-radius: 16px; border: 1px solid #fbcfe8; font-family: sans-serif;">
         <h3 style="color: #be185d; margin-bottom: 12px;">Chúc mừng bạn đã tạo hòm thư thành công! 🎉</h3>
         <p style="color: #831843; line-height: 1.6; margin-bottom: 16px;">
-          Xin chào <strong>${username}</strong>! Địa chỉ email <strong>${fullEmail}</strong> của bạn đã sẵn sàng để gửi nhận thư, đăng ký tài khoản game, giao dịch và làm việc.
+          Xin chào <strong>${cleanUsername}</strong>! Địa chỉ email <strong>${fullEmail}</strong> của bạn đã sẵn sàng để gửi nhận thư, đăng ký tài khoản game, giao dịch và làm việc.
         </p>
         <div style="background: white; padding: 16px; border-radius: 12px; border: 1px dashed #f472b6; margin-bottom: 16px;">
           ✨ <strong>Linh vật hộ mệnh:</strong> ${mascotName}<br>
-          🛡️ <strong>Bảo mật:</strong> Đã kích hoạt bảo vệ chống thư rác và mã hóa phiên.
+          🛡️ <strong>Bảo mật:</strong> Đã kích hoạt HMAC-SHA256 Token, chống XSS và mã hóa Cloudflare Edge.
         </div>
-        <p style="color: #9d174d; font-size: 0.9rem;">Chúc bạn có những trải nghiệm thật tuyệt vời cùng PastelMail!</p>
+        <p style="color: #9d174d; font-size: 0.9rem;">Chúc bạn có những trải nghiệm thật tuyệt vời cùng Lưu Vân Mail!</p>
       </div>
     `
   });
   localStorage.setItem('pastelmail_emails_v1', JSON.stringify(emails));
 
-  // Auto login
   setSession(newUser);
   return newUser;
 }
 
 // Login
 export async function loginUser(email, password) {
-  const users = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY)) || [];
   const cleanEmail = email.trim().toLowerCase();
+  const hashSalted = await hashPassword(password);
+  const hashLegacy = await hashPasswordLegacy(password);
+
+  // 1. Try Cloud API first
+  try {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: cleanEmail, passwordHash: hashSalted })
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      if (data.token) setAuthToken(data.token);
+      const user = {
+        id: data.user.id,
+        email: data.user.email,
+        username: data.user.username,
+        domain: data.user.domain,
+        mascot: data.user.mascotName || 'Linh vật',
+        avatar: data.user.mascotAvatar || '/assets/mascot_luuvan.webp'
+      };
+      setSession(user);
+      return user;
+    } else {
+      // Try legacy hash on server
+      const resLegacy = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: cleanEmail, passwordHash: hashLegacy })
+      });
+      if (resLegacy.ok) {
+        const data = await resLegacy.json();
+        if (data.token) setAuthToken(data.token);
+        const user = {
+          id: data.user.id,
+          email: data.user.email,
+          username: data.user.username,
+          domain: data.user.domain,
+          mascot: data.user.mascotName || 'Linh vật',
+          avatar: data.user.mascotAvatar || '/assets/mascot_luuvan.webp'
+        };
+        setSession(user);
+        return user;
+      }
+    }
+  } catch (apiErr) {
+    console.warn('API login check failed, falling back to local storage:', apiErr);
+  }
+
+  // 2. Fallback to Local Storage
+  const users = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY)) || [];
   const user = users.find(u => u.email.toLowerCase() === cleanEmail);
 
   if (!user) {
     throw new Error('Email này chưa được đăng ký trong hệ thống. Vui lòng bấm Đăng Ký!');
   }
 
-  const hash = await hashPassword(password);
-  if (user.passwordHash !== hash) {
+  if (user.passwordHash !== hashSalted && user.passwordHash !== hashLegacy) {
     throw new Error('Mật khẩu không chính xác. Vui lòng kiểm tra lại!');
   }
 
   setSession(user);
   return user;
+}
+
+// Fetch Cloud Emails from Cloudflare D1
+export async function fetchCloudEmails(email) {
+  const token = getAuthToken();
+  if (!token) return [];
+
+  try {
+    const res = await fetch(`/api/emails?email=${encodeURIComponent(email)}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      return (data.emails || []).map(row => ({
+        id: row.id,
+        domain: row.recipient_email ? row.recipient_email.split('@')[1] : 'luuvan.online',
+        folder: row.folder || 'inbox',
+        starred: Boolean(row.is_starred),
+        read: Boolean(row.is_read),
+        senderName: row.sender_name || 'Người gửi',
+        senderEmail: row.sender_email || '',
+        senderAvatar: row.sender_avatar || '✉️',
+        subject: row.subject || '(Không có tiêu đề)',
+        snippet: row.snippet || '',
+        tag: row.tag || 'Hộp thư',
+        tagColor: row.tag_color || '#ec4899',
+        date: new Date(row.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        timestamp: new Date(row.created_at).getTime(),
+        body: row.body_html || `<p>${row.snippet}</p>`
+      }));
+    }
+  } catch (err) {
+    console.warn('Could not fetch cloud emails:', err);
+  }
+  return [];
 }
 
 // Session Helpers
@@ -158,4 +304,5 @@ export function getSession() {
 
 export function clearSession() {
   localStorage.removeItem(SESSION_KEY);
+  clearAuthToken();
 }

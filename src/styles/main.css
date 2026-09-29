@@ -51,10 +51,12 @@ body {
   background: linear-gradient(135deg, #fdf2f8 0%, #ede9fe 40%, #e0f2fe 100%);
   z-index: 500;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  padding: 20px;
+  justify-content: flex-start;
+  padding: 40px 16px 60px;
   overflow-y: auto;
+  gap: 32px;
 }
 
 .auth-card {
@@ -1115,3 +1117,150 @@ body {
 .toast-notice.show {
   transform: translateX(-50%) translateY(0);
 }
+
+/* =========================================================================
+   LANDING / FAQ / FEATURES SECTION (SEO, SXO, AEO, GEO)
+   ========================================================================= */
+.auth-info-section {
+  width: 680px;
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  animation: auth-fade-in 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.auth-features-banner,
+.auth-faq-container {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-radius: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 0 16px 40px -10px rgba(99, 102, 241, 0.12);
+  padding: 24px 28px;
+}
+
+.auth-features-banner h3,
+.auth-faq-container h3 {
+  font-family: var(--font-heading);
+  font-size: 1.25rem;
+  color: #1e1b4b;
+  margin-bottom: 6px;
+  text-align: center;
+}
+
+.auth-features-banner > p {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  margin-bottom: 20px;
+}
+
+.feature-domain-list {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+}
+
+@media (max-width: 640px) {
+  .feature-domain-list {
+    grid-template-columns: 1fr;
+  }
+}
+
+.feature-domain-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: white;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid #f1f5f9;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.feature-domain-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(99, 102, 241, 0.08);
+}
+
+.feature-domain-item img {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 2px solid #fbcfe8;
+}
+
+.feature-domain-item h4 {
+  font-family: var(--font-heading);
+  font-size: 0.95rem;
+  color: #1e293b;
+  margin-bottom: 2px;
+}
+
+.feature-domain-item p {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+/* FAQ Accordion (AEO / GEO) */
+.faq-item {
+  border-bottom: 1px solid #f1f5f9;
+  padding: 12px 0;
+}
+
+.faq-item:last-child {
+  border-bottom: none;
+}
+
+.faq-item summary {
+  font-family: var(--font-heading);
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #1e1b4b;
+  cursor: pointer;
+  padding: 4px 0;
+  user-select: none;
+  transition: color 0.2s;
+}
+
+.faq-item summary:hover {
+  color: var(--theme-primary, #6366f1);
+}
+
+.faq-item p {
+  padding-top: 8px;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+.auth-landing-footer {
+  text-align: center;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  padding: 8px 0 16px;
+}
+
+.auth-footer-links {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.auth-footer-links a {
+  color: #6366f1;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.auth-footer-links a:hover {
+  text-decoration: underline;
+}
+
