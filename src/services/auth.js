@@ -316,3 +316,29 @@ export function clearSession() {
   localStorage.removeItem(SESSION_KEY);
   clearAuthToken();
 }
+
+// Switch User Domain in the Ecosystem
+export function switchActiveDomain(targetDomain) {
+  const user = getSession();
+  if (!user) return null;
+
+  const username = user.username || user.email.split('@')[0];
+  const mascotMap = {
+    'luuvan.online': { name: 'Mèo Luna (Tri thức & Dev)', avatar: '/assets/mascot_luuvan.webp' },
+    'aetherix.site': { name: 'Mèo Aether (AI & Cloud)', avatar: '/assets/mascot_aetherix.webp' },
+    'chotroi.site': { name: 'Gấu Kuma (MMO & Bazaar)', avatar: '/assets/mascot_chotroi.webp' },
+    'aadidass.tokyo': { name: 'Thỏ Midori (Game & Giải trí)', avatar: '/assets/mascot_bunny.webp' }
+  };
+
+  const mascot = mascotMap[targetDomain] || mascotMap['luuvan.online'];
+  const updatedUser = {
+    ...user,
+    domain: targetDomain,
+    email: `${username}@${targetDomain}`,
+    mascot: mascot.name,
+    avatar: mascot.avatar
+  };
+
+  setSession(updatedUser);
+  return updatedUser;
+}

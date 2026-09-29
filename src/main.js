@@ -2,7 +2,7 @@ import confetti from 'canvas-confetti';
 import DOMPurify from 'dompurify';
 import { defaultEmails } from './data/mockEmails.js';
 import { domainsData } from './data/domains.js';
-import { initAuth, loginUser, registerUser, getSession, clearSession, fetchCloudEmails, getAuthToken } from './services/auth.js';
+import { initAuth, loginUser, registerUser, getSession, clearSession, fetchCloudEmails, getAuthToken, switchActiveDomain } from './services/auth.js';
 
 // State
 let emails = defaultEmails;
@@ -358,7 +358,13 @@ function initCompose() {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
           },
-          body: JSON.stringify({ to: toDisplay, recipients, subject, content: body })
+          body: JSON.stringify({
+            to: toDisplay,
+            recipients,
+            subject,
+            content: body,
+            fromEmail: currentUser?.email
+          })
         });
         if (apiRes.ok) {
           apiFeedback = await apiRes.json();
@@ -549,7 +555,9 @@ function setupEvents() {
   // Refresh
   document.getElementById('btn-refresh').addEventListener('click', async () => {
     await syncCloudData();
-    emails = JSON.parse(localStorage.getItem('pastelmail_emails_v1')) || defaultEmails;
+    if (currentUser?.email) {
+      emails = JSON.parse(localStorage.getItem(getStorageKey(currentUser.email))) || defaultEmails;
+    }
     renderMailList();
     showToast('Đã đồng bộ hòm thư từ Cloudflare!');
   });
@@ -625,11 +633,144 @@ function setupEvents() {
   });
 }
 
+// Interactive 4-Domain Ecosystem Switcher
+function initDomainSwitcher() {
+  const pillBtn = document.getElementById('account-pill-btn');
+  const dropdown = document.getElementById('domain-switcher-dropdown');
+  const optionsList = document.getElementById('switcher-options-list');
+
+  if (!pillBtn || !dropdown || !optionsList) return;
+
+  function renderSwitcherOptions() {
+    if (!currentUser) return;
+    const currentDomain = currentUser.domain || 'luuvan.online';
+    const cleanUsername = currentUser.username || currentUser.email.split('@')[0];
+
+    const ecosystemDomains = [
+      {
+        domain: 'luuvan.online',
+        title: 'Lưu Vân Thư Quán',
+        category: 'Tri thức & Lập trình',
+        mascot: 'Mèo Luna',
+        avatar: '/assets/mascot_luuvan.webp',
+        badge: 'Học tập & Dev'
+      },
+      {
+        domain: 'aetherix.site',
+        title: 'Aetherix Studio',
+        category: 'AI & Cloud Edge',
+        mascot: 'Mèo Aether',
+        avatar: '/assets/mascot_aetherix.webp',
+        badge: 'AI & Cloud'
+      },
+      {
+        domain: 'chotroi.site',
+        title: 'Chợ Trời Bazaar',
+        category: 'Thương mại & Tài nguyên MMO',
+        mascot: 'Gấu Kuma',
+        avatar: '/assets/mascot_chotroi.webp',
+        badge: 'Giao dịch MMO'
+      },
+      {
+        domain: 'aadidass.tokyo',
+        title: 'Tokyo Harajuku',
+        category: 'Gaming & Giải trí',
+        mascot: 'Thỏ Midori',
+        avatar: '/assets/mascot_bunny.webp',
+        badge: 'Game & Play'
+      }
+    ];
+
+    optionsList.innerHTML = ecosystemDomains.map(item => {
+      const isActive = item.domain === currentDomain;
+      const emailForDomain = `${cleanUsername}@${item.domain}`;
+
+      return `
+        <div class="switcher-option-card ${isActive ? 'active' : ''}" data-domain="${item.domain}">
+          <img src="${item.avatar}" alt="${escapeHtml(item.mascot)}" class="switcher-card-avatar" />
+          <div class="switcher-card-info">
+            <strong>${item.domain}</strong>
+            <span>${emailForDomain}</span>
+            <small style="color: #64748b; font-size: 0.72rem;">${item.category}</small>
+          </div>
+          <span class="switcher-card-badge ${isActive ? 'active-indicator' : ''}">
+            ${isActive ? '✓ Đang dùng' : item.badge}
+          </span>
+        </div>
+      `;
+    }).join('');
+
+    optionsList.querySelectorAll('.switcher-option-card').forEach(card => {
+      card.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const targetDomain = card.dataset.domain;
+        if (targetDomain === currentUser.domain) {
+          closeDropdown();
+          return;
+        }
+
+        // Switch Domain
+        const updated = switchActiveDomain(targetDomain);
+        if (updated) {
+          currentUser = updated;
+          emails = JSON.parse(localStorage.getItem(getStorageKey(currentUser.email))) || defaultEmails;
+          applyTheme(currentUser.domain);
+          renderMailList();
+          closeReaderView();
+          closeDropdown();
+
+          confetti({
+            particleCount: 60,
+            spread: 80,
+            origin: { y: 0.2 },
+            colors: ['#fbcfe8', '#e0e7ff', '#fef3c7', '#d1fae5']
+          });
+
+          showToast(`Đã chuyển sang không gian ${currentUser.mascot} (${currentUser.domain})! ✨`);
+          await syncCloudData();
+        }
+      });
+    });
+  }
+
+  function toggleDropdown() {
+    const isOpen = dropdown.classList.contains('open');
+    if (isOpen) {
+      closeDropdown();
+    } else {
+      openDropdown();
+    }
+  }
+
+  function openDropdown() {
+    renderSwitcherOptions();
+    dropdown.classList.add('open');
+    pillBtn.classList.add('open');
+  }
+
+  function closeDropdown() {
+    dropdown.classList.remove('open');
+    pillBtn.classList.remove('open');
+  }
+
+  pillBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleDropdown();
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!pillBtn.contains(e.target) && !dropdown.contains(e.target)) {
+      closeDropdown();
+    }
+  });
+}
+
 // Bootstrap
 document.addEventListener('DOMContentLoaded', async () => {
   await initAuth();
   initAuthGate();
   initCompose();
+  initDomainSwitcher();
   setupEvents();
 
   // Check existing session

@@ -338,11 +338,23 @@
 
       <!-- Topbar Right Actions -->
       <div class="topbar-right">
-        <div class="account-pill-btn">
+        <div class="account-pill-btn" id="account-pill-btn" title="Bấm để chuyển đổi giữa 4 tên miền trong hệ sinh thái" tabindex="0">
           <img src="/assets/mascot_luuvan.webp" alt="Account Avatar" class="account-pill-avatar" id="account-avatar" />
           <div class="account-pill-info">
             <strong id="account-display-name">loc@luuvan.online</strong>
             <span id="account-mascot-label">Mèo Luna (Tri thức & Dev)</span>
+          </div>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="domain-switch-arrow" id="domain-switch-arrow"><path d="m6 9 6 6 6-6"/></svg>
+        </div>
+
+        <!-- DOMAIN SWITCHER DROPDOWN MENU -->
+        <div class="domain-switcher-dropdown" id="domain-switcher-dropdown">
+          <div class="switcher-dropdown-header">
+            <span>Hệ Sinh Thái 4 Tên Miền</span>
+            <small>Chuyển đổi tức thì</small>
+          </div>
+          <div class="switcher-options-list" id="switcher-options-list">
+            <!-- Rendered dynamically -->
           </div>
         </div>
 

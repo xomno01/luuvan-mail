@@ -291,7 +291,17 @@ export default {
         const token = authHeader.replace(/^Bearer\s+/i, '').trim();
         const payload = await verifyToken(token, secretKey);
 
-        if (!payload || payload.email.toLowerCase() !== email.trim().toLowerCase()) {
+        const payloadUsername = payload?.username || (payload?.email ? payload.email.split('@')[0] : '');
+        const reqUsername = email.trim().toLowerCase().split('@')[0];
+        const reqDomain = email.trim().toLowerCase().split('@')[1];
+
+        // Authorized if exact match OR matching username across any ecosystem domain
+        const isAuthorized = payload && (
+          payload.email.toLowerCase() === email.trim().toLowerCase() ||
+          (payloadUsername.toLowerCase() === reqUsername.toLowerCase() && ALLOWED_DOMAINS.includes(reqDomain))
+        );
+
+        if (!isAuthorized) {
           return new Response(JSON.stringify({ error: 'Phiên làm việc không hợp lệ hoặc đã hết hạn. Vui lòng đăng nhập lại!' }), {
             status: 401,
             headers: responseHeaders
@@ -326,7 +336,17 @@ export default {
         }
 
         const body = await request.json();
-        const { to, recipients, subject, content } = body;
+        const { to, recipients, subject, content, fromEmail } = body;
+
+        const payloadUsername = payload.username || (payload.email ? payload.email.split('@')[0] : '');
+        let activeSenderEmail = payload.email;
+        if (fromEmail && typeof fromEmail === 'string' && fromEmail.includes('@')) {
+          const fDomain = fromEmail.split('@')[1].toLowerCase();
+          const fUser = fromEmail.split('@')[0].toLowerCase();
+          if (ALLOWED_DOMAINS.includes(fDomain) && fUser === payloadUsername.toLowerCase()) {
+            activeSenderEmail = fromEmail.toLowerCase();
+          }
+        }
 
         // Parse and deduplicate all recipients
         let targetList = [];
@@ -359,8 +379,8 @@ export default {
           mailId,
           payload.userId,
           toDisplay,
-          payload.email.split('@')[0],
-          payload.email,
+          payloadUsername,
+          activeSenderEmail,
           safeSubject,
           safeSnippet,
           safeBody
@@ -414,7 +434,7 @@ export default {
                     'Content-Type': 'application/json'
                   },
                   body: JSON.stringify({
-                    from: `${senderDisplayName} <${payload.email}>`,
+                    from: `${senderDisplayName} <${activeSenderEmail}>`,
                     to: externalRecipients,
                     subject: safeSubject,
                     html: safeBody
