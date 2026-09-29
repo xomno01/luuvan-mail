@@ -268,23 +268,33 @@ export async function fetchCloudEmails(email) {
 
     if (res.ok) {
       const data = await res.json();
-      return (data.emails || []).map(row => ({
-        id: row.id,
-        domain: row.recipient_email ? row.recipient_email.split('@')[1] : 'luuvan.online',
-        folder: row.folder || 'inbox',
-        starred: Boolean(row.is_starred),
-        read: Boolean(row.is_read),
-        senderName: row.sender_name || 'Người gửi',
-        senderEmail: row.sender_email || '',
-        senderAvatar: row.sender_avatar || '✉️',
-        subject: row.subject || '(Không có tiêu đề)',
-        snippet: row.snippet || '',
-        tag: row.tag || 'Hộp thư',
-        tagColor: row.tag_color || '#ec4899',
-        date: new Date(row.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        timestamp: new Date(row.created_at).getTime(),
-        body: row.body_html || `<p>${row.snippet}</p>`
-      }));
+      return (data.emails || []).map(row => {
+        let mailDomain = 'luuvan.online';
+        if (row.folder === 'sent' && row.sender_email && row.sender_email.includes('@')) {
+          mailDomain = row.sender_email.split('@')[1];
+        } else if (row.recipient_email && row.recipient_email.includes('@')) {
+          mailDomain = row.recipient_email.split('@')[1];
+        }
+
+        return {
+          id: row.id,
+          domain: mailDomain,
+          folder: row.folder || 'inbox',
+          starred: Boolean(row.is_starred),
+          read: Boolean(row.is_read),
+          senderName: row.sender_name || 'Người gửi',
+          senderEmail: row.sender_email || '',
+          recipientEmail: row.recipient_email || '',
+          senderAvatar: row.sender_avatar || (row.folder === 'sent' ? '📤' : '✉️'),
+          subject: row.subject || '(Không có tiêu đề)',
+          snippet: row.snippet || '',
+          tag: row.tag || (row.folder === 'sent' ? 'Đã gửi' : 'Hộp thư'),
+          tagColor: row.tag_color || (row.folder === 'sent' ? '#6366f1' : '#ec4899'),
+          date: new Date(row.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          timestamp: new Date(row.created_at).getTime(),
+          body: row.body_html || `<p>${row.snippet}</p>`
+        };
+      });
     }
   } catch (err) {
     console.warn('Could not fetch cloud emails:', err);

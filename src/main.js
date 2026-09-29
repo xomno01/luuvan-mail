@@ -186,19 +186,27 @@ function renderMailList() {
   }
 
   // Render with strict HTML escaping on user-provided strings
-  container.innerHTML = list.map(m => `
-    <div class="mail-item-row ${m.read ? '' : 'unread'}" data-id="${escapeHtml(m.id)}">
-      <button class="mail-star-btn ${m.starred ? 'starred' : ''}" data-star-id="${escapeHtml(m.id)}" title="Gắn dấu sao">★</button>
-      <div class="mail-avatar">${escapeHtml(m.senderAvatar || '✉️')}</div>
-      <div class="mail-sender">${escapeHtml(m.senderName)}</div>
-      <div class="mail-content-preview">
-        <span class="mail-subject">${escapeHtml(m.subject)}</span>
-        <span class="mail-snippet"> — ${escapeHtml(m.snippet)}</span>
+  container.innerHTML = list.map(m => {
+    const isSent = m.folder === 'sent';
+    const displaySender = isSent
+      ? `Tới: ${m.recipientEmail || 'Người nhận'}`
+      : (m.senderName || 'Người gửi');
+    const displayAvatar = m.senderAvatar || (isSent ? '📤' : '✉️');
+
+    return `
+      <div class="mail-item-row ${m.read ? '' : 'unread'}" data-id="${escapeHtml(m.id)}">
+        <button class="mail-star-btn ${m.starred ? 'starred' : ''}" data-star-id="${escapeHtml(m.id)}" title="Gắn dấu sao">★</button>
+        <div class="mail-avatar">${escapeHtml(displayAvatar)}</div>
+        <div class="mail-sender" title="${escapeHtml(displaySender)}">${escapeHtml(displaySender)}</div>
+        <div class="mail-content-preview">
+          <span class="mail-subject">${escapeHtml(m.subject)}</span>
+          <span class="mail-snippet"> — ${escapeHtml(m.snippet)}</span>
+        </div>
+        <span class="mail-tag-badge" style="background: ${escapeHtml(m.tagColor)}15; color: ${escapeHtml(m.tagColor)};">${escapeHtml(m.tag)}</span>
+        <div class="mail-date">${escapeHtml(m.date)}</div>
       </div>
-      <span class="mail-tag-badge" style="background: ${escapeHtml(m.tagColor)}15; color: ${escapeHtml(m.tagColor)};">${escapeHtml(m.tag)}</span>
-      <div class="mail-date">${escapeHtml(m.date)}</div>
-    </div>
-  `).join('');
+    `;
+  }).join('');
 
   container.querySelectorAll('.mail-item-row').forEach(row => {
     row.addEventListener('click', (e) => {
@@ -235,20 +243,44 @@ function openReaderView(emailId) {
   const readerView = document.getElementById('mail-reader-view');
   readerView.classList.add('active');
 
+  // Dynamic back button text based on folder
+  const folderNames = {
+    inbox: 'Hộp thư đến',
+    starred: 'Thư có sao',
+    sent: 'Thư đã gửi',
+    trash: 'Thùng rác'
+  };
+  const backTextEl = document.getElementById('reader-back-btn-text');
+  if (backTextEl) {
+    backTextEl.textContent = `Quay lại ${folderNames[currentFolder] || 'Hộp thư'}`;
+  }
+
   // Text content prevents any XSS in header details
   document.getElementById('reader-subject').textContent = mail.subject;
   document.getElementById('reader-tag-badge').textContent = mail.tag;
   document.getElementById('reader-tag-badge').style.background = `${mail.tagColor}20`;
   document.getElementById('reader-tag-badge').style.color = mail.tagColor;
 
-  document.getElementById('reader-sender-avatar').textContent = mail.senderAvatar || '✉️';
-  if (mail.folder === 'sent' && mail.recipientEmail) {
-    document.getElementById('reader-sender-name').textContent = `Tới: ${mail.recipientEmail}`;
-    document.getElementById('reader-sender-email').textContent = `Từ: <${mail.senderEmail}>`;
+  document.getElementById('reader-sender-avatar').textContent = mail.senderAvatar || (mail.folder === 'sent' ? '📤' : '✉️');
+
+  // Display From & To clearly
+  const senderNameEl = document.getElementById('reader-sender-name');
+  const senderEmailEl = document.getElementById('reader-sender-email');
+  const toPrefixEl = document.getElementById('reader-to-prefix');
+  const recipientEmailEl = document.getElementById('reader-recipient-email');
+
+  if (mail.folder === 'sent') {
+    senderNameEl.textContent = mail.senderName || currentUser?.username || 'Tôi';
+    senderEmailEl.textContent = `<${mail.senderEmail || currentUser?.email || ''}>`;
+    if (toPrefixEl) toPrefixEl.textContent = 'Tới:';
+    if (recipientEmailEl) recipientEmailEl.textContent = mail.recipientEmail || 'Chưa xác định';
   } else {
-    document.getElementById('reader-sender-name').textContent = mail.senderName;
-    document.getElementById('reader-sender-email').textContent = `<${mail.senderEmail}>`;
+    senderNameEl.textContent = mail.senderName || 'Người gửi';
+    senderEmailEl.textContent = mail.senderEmail ? `<${mail.senderEmail}>` : '';
+    if (toPrefixEl) toPrefixEl.textContent = 'Tới:';
+    if (recipientEmailEl) recipientEmailEl.textContent = mail.recipientEmail || currentUser?.email || 'Tôi';
   }
+
   document.getElementById('reader-date').textContent = mail.date;
 
   const starBtn = document.getElementById('reader-star-btn');

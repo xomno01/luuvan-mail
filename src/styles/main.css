@@ -892,16 +892,52 @@ body {
   font-size: 1.3rem;
 }
 
-.sender-details strong {
-  display: block;
-  font-family: var(--font-heading);
-  font-size: 1rem;
-  color: var(--text-main);
+.sender-details {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
 }
 
-.sender-details span {
+.sender-from-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.sender-from-line strong {
+  font-family: var(--font-heading);
+  font-size: 0.98rem;
+  color: var(--text-main);
+  font-weight: 700;
+}
+
+.sender-from-line .sender-email-text {
   font-size: 0.82rem;
   color: var(--text-muted);
+}
+
+.sender-to-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  flex-wrap: wrap;
+}
+
+.sender-to-line .to-prefix {
+  font-weight: 600;
+  color: #94a3b8;
+}
+
+.sender-to-line .to-email-text {
+  color: #334155;
+  background: #f1f5f9;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  border: 1px solid #e2e8f0;
+  font-family: monospace;
 }
 
 .reader-body-content {

@@ -452,7 +452,7 @@
           <div class="reader-header">
             <button class="reader-back-btn" id="reader-back-btn">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-              <span>Quay lại Hộp thư đến</span>
+              <span id="reader-back-btn-text">Quay lại Hộp thư đến</span>
             </button>
 
             <div class="reader-title-row">
@@ -464,8 +464,14 @@
               <div class="sender-profile-info">
                 <div class="sender-avatar-large" id="reader-sender-avatar">📖</div>
                 <div class="sender-details">
-                  <strong id="reader-sender-name">Lưu Vân Thư Quán</strong>
-                  <span id="reader-sender-email">bantin@luuvan.online</span>
+                  <div class="sender-from-line">
+                    <strong id="reader-sender-name">Lưu Vân Thư Quán</strong>
+                    <span id="reader-sender-email" class="sender-email-text">&lt;bantin@luuvan.online&gt;</span>
+                  </div>
+                  <div class="sender-to-line" id="reader-to-line">
+                    <span class="to-prefix" id="reader-to-prefix">Tới:</span>
+                    <span id="reader-recipient-email" class="to-email-text"></span>
+                  </div>
                 </div>
               </div>
 
