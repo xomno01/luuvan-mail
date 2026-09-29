@@ -381,7 +381,8 @@ function initCompose() {
       if (apiFeedback.externalRelaySuccess) {
         finalToastMsg += ' ✨ (Đã chuyển tiếp tới Gmail thật)';
       } else {
-        finalToastMsg += ' ℹ️ (Đã lưu vào mục Đã gửi. Để bay vào Gmail ngoài đời cần gắn Resend API)';
+        const detail = apiFeedback.notice ? `: ${apiFeedback.notice}` : '';
+        finalToastMsg += ` ⚠️ (Đã lưu hộp thư Đã gửi. Gửi ra internet${detail})`;
       }
     }
 

@@ -207,7 +207,7 @@ export default {
 
         // Generate Signed Token (Valid for 7 days)
         const exp = Date.now() + 7 * 24 * 3600 * 1000;
-        const token = await signToken({ userId, email: fullEmail, exp }, secretKey);
+        const token = await signToken({ userId, email: fullEmail, username: cleanUsername, exp }, secretKey);
 
         const safeUser = {
           id: userId,
@@ -256,7 +256,7 @@ export default {
 
         // Generate Signed Token
         const exp = Date.now() + 7 * 24 * 3600 * 1000;
-        const token = await signToken({ userId: user.id, email: user.email, exp }, secretKey);
+        const token = await signToken({ userId: user.id, email: user.email, username: user.username, exp }, secretKey);
 
         // Sanitize output (never leak password_hash)
         const safeUser = {
@@ -400,6 +400,7 @@ export default {
         if (externalRecipients.length > 0) {
           if (env.RESEND_API_KEY) {
             try {
+              const senderDisplayName = payload.username || payload.email.split('@')[0];
               const resendRes = await fetch('https://api.resend.com/emails', {
                 method: 'POST',
                 headers: {
@@ -407,7 +408,7 @@ export default {
                   'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                  from: `${payload.username} <${payload.email}>`,
+                  from: `${senderDisplayName} <${payload.email}>`,
                   to: externalRecipients,
                   subject: safeSubject,
                   html: safeBody
@@ -419,7 +420,12 @@ export default {
               } else {
                 const resendErr = await resendRes.text();
                 console.error('Resend relay error:', resendErr);
-                externalNotice = 'Chưa chuyển tiếp được tới hòm thư ngoài do cấu hình Resend.';
+                try {
+                  const errJson = JSON.parse(resendErr);
+                  externalNotice = errJson.message || 'Lỗi gửi từ Resend';
+                } catch {
+                  externalNotice = 'Chưa chuyển tiếp được tới hòm thư ngoài do cấu hình Resend.';
+                }
               }
             } catch (rErr) {
               console.error('Outbound relay exception:', rErr);
