@@ -1,10 +1,11 @@
 import confetti from 'canvas-confetti';
+import DOMPurify from 'dompurify';
 import { defaultEmails } from './data/mockEmails.js';
 import { domainsData } from './data/domains.js';
 import { initAuth, loginUser, registerUser, getSession, clearSession, fetchCloudEmails, getAuthToken } from './services/auth.js';
 
 // State
-let emails = JSON.parse(localStorage.getItem('pastelmail_emails_v1')) || defaultEmails;
+let emails = defaultEmails;
 let currentUser = null;
 let currentFolder = 'inbox';
 let currentFilter = 'all';
@@ -16,8 +17,14 @@ let regChosenDomain = 'luuvan.online';
 let regChosenMascotName = 'Mèo Luna (Tri thức & Dev)';
 let regChosenMascotAvatar = '/assets/mascot_luuvan.webp';
 
+function getStorageKey(email) {
+  return `pastelmail_emails_${email ? email.toLowerCase().replace(/[^a-z0-9]/g, '_') : 'guest'}`;
+}
+
 function saveEmails() {
-  localStorage.setItem('pastelmail_emails_v1', JSON.stringify(emails));
+  if (currentUser?.email) {
+    localStorage.setItem(getStorageKey(currentUser.email), JSON.stringify(emails));
+  }
 }
 
 // Escape plain text for HTML interpolation
@@ -31,50 +38,14 @@ function escapeHtml(str) {
     .replace(/'/g, '&#039;');
 }
 
-// Native Robust HTML Sanitizer against XSS (DOMParser based)
+// Enterprise DOMPurify Sanitizer against XSS (OWASP Grade)
 function sanitizeEmailHtml(dirty) {
   if (!dirty) return '';
-  try {
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(dirty, 'text/html');
-
-    // 1. Remove dangerous script and executable tags
-    const dangerousTags = ['script', 'iframe', 'object', 'embed', 'applet', 'meta', 'link', 'style', 'base', 'form', 'input', 'textarea', 'button'];
-    dangerousTags.forEach(tag => {
-      doc.querySelectorAll(tag).forEach(el => el.remove());
-    });
-
-    // 2. Strip event handlers and suspicious URI schemes
-    doc.querySelectorAll('*').forEach(el => {
-      Array.from(el.attributes).forEach(attr => {
-        const name = attr.name.toLowerCase();
-        const value = attr.value.trim().toLowerCase();
-
-        // Remove any on* attributes (onclick, onerror, onload, etc.)
-        if (name.startsWith('on') || name === 'srcdoc') {
-          el.removeAttribute(attr.name);
-        }
-
-        // Block javascript: and vbscript: URIs
-        if (['href', 'src', 'action', 'data', 'xlink:href'].includes(name)) {
-          if (value.startsWith('javascript:') || value.startsWith('vbscript:') || value.startsWith('data:text/html')) {
-            el.removeAttribute(attr.name);
-          }
-        }
-      });
-
-      // Sandbox links
-      if (el.tagName.toLowerCase() === 'a') {
-        el.setAttribute('target', '_blank');
-        el.setAttribute('rel', 'noopener noreferrer');
-      }
-    });
-
-    return doc.body.innerHTML;
-  } catch (e) {
-    console.error('Sanitizer fallback error:', e);
-    return `<p>${escapeHtml(dirty)}</p>`;
-  }
+  return DOMPurify.sanitize(dirty, {
+    ADD_ATTR: ['target', 'rel'],
+    FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'input'],
+    FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover']
+  });
 }
 
 // Toast
@@ -148,6 +119,7 @@ async function setAuthState(user) {
   const webmailApp = document.getElementById('webmail-app');
 
   if (user) {
+    emails = JSON.parse(localStorage.getItem(getStorageKey(user.email))) || defaultEmails;
     authGate.style.display = 'none';
     webmailApp.classList.add('active');
     applyTheme(user.domain);
@@ -270,14 +242,19 @@ function openReaderView(emailId) {
   document.getElementById('reader-tag-badge').style.color = mail.tagColor;
 
   document.getElementById('reader-sender-avatar').textContent = mail.senderAvatar || '✉️';
-  document.getElementById('reader-sender-name').textContent = mail.senderName;
-  document.getElementById('reader-sender-email').textContent = `<${mail.senderEmail}>`;
+  if (mail.folder === 'sent' && mail.recipientEmail) {
+    document.getElementById('reader-sender-name').textContent = `Tới: ${mail.recipientEmail}`;
+    document.getElementById('reader-sender-email').textContent = `Từ: <${mail.senderEmail}>`;
+  } else {
+    document.getElementById('reader-sender-name').textContent = mail.senderName;
+    document.getElementById('reader-sender-email').textContent = `<${mail.senderEmail}>`;
+  }
   document.getElementById('reader-date').textContent = mail.date;
 
   const starBtn = document.getElementById('reader-star-btn');
   starBtn.classList.toggle('starred', mail.starred);
 
-  // Body content passed through DOMParser-based HTML Sanitizer
+  // Body content passed through DOMPurify HTML Sanitizer
   const sanitizedBody = sanitizeEmailHtml(mail.body || `<p>${escapeHtml(mail.snippet)}</p>`);
   document.getElementById('reader-body-content').innerHTML = sanitizedBody;
 }
@@ -318,11 +295,25 @@ function initCompose() {
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const to = document.getElementById('compose-to').value.trim();
+    const rawTo = document.getElementById('compose-to').value.trim();
     const subject = document.getElementById('compose-subject').value.trim();
     const body = document.getElementById('compose-body').value.trim();
 
-    if (!to || !subject) return;
+    // Smart recipient parsing: regex extracts any valid email address, handling quotes, spaces, commas, semicolons
+    const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+    const recipients = Array.from(new Set((rawTo.match(emailRegex) || []).map(r => r.toLowerCase().trim())));
+
+    if (recipients.length === 0) {
+      alert('Vui lòng nhập ít nhất một địa chỉ email hợp lệ (ví dụ: loc@gmail.com)!');
+      return;
+    }
+
+    if (!subject) {
+      alert('Vui lòng nhập tiêu đề email!');
+      return;
+    }
+
+    const toDisplay = recipients.join(', ');
 
     // Send via Cloudflare API if token exists
     const token = getAuthToken();
@@ -334,7 +325,7 @@ function initCompose() {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
           },
-          body: JSON.stringify({ to, subject, content: body })
+          body: JSON.stringify({ to: toDisplay, recipients, subject, content: body })
         });
       } catch (err) {
         console.warn('Backend send email notice:', err);
@@ -349,6 +340,7 @@ function initCompose() {
       read: true,
       senderName: currentUser.username,
       senderEmail: currentUser.email,
+      recipientEmail: toDisplay,
       senderAvatar: '📤',
       subject: subject,
       snippet: body.substring(0, 80) + '...',
@@ -356,7 +348,12 @@ function initCompose() {
       tagColor: '#6366f1',
       date: 'Vừa xong',
       timestamp: Date.now(),
-      body: `<div style="padding: 16px; font-family: sans-serif; line-height: 1.6;">${escapeHtml(body).replace(/\n/g, '<br>')}</div>`
+      body: `<div style="padding: 16px; font-family: sans-serif; line-height: 1.6;">
+        <div style="background: #f8fafc; padding: 10px 14px; border-radius: 10px; margin-bottom: 14px; font-size: 0.85rem; color: #475569; border: 1px solid #e2e8f0;">
+          <strong>Gửi đến (${recipients.length} người nhận):</strong> ${escapeHtml(toDisplay)}
+        </div>
+        <div>${escapeHtml(body).replace(/\n/g, '<br>')}</div>
+      </div>`
     };
 
     emails.unshift(newMail);
@@ -372,7 +369,11 @@ function initCompose() {
       colors: ['#fbcfe8', '#e0e7ff', '#fef3c7', '#d1fae5']
     });
 
-    showToast(`Đã gửi email thành công tới ${to}! 🚀`);
+    const successMsg = recipients.length > 1
+      ? `Đã gửi thư thành công tới ${recipients.length} người nhận! 🚀`
+      : `Đã gửi email thành công tới ${recipients[0]}! 🚀`;
+
+    showToast(successMsg);
     renderMailList();
   });
 }

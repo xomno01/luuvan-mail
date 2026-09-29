@@ -300,8 +300,10 @@ export default {
 
         const results = await env.DB.prepare(`
           SELECT id, user_id, recipient_email, sender_name, sender_email, sender_avatar, subject, snippet, body_html, folder, is_read, is_starred, tag, tag_color, created_at
-          FROM emails WHERE LOWER(recipient_email) = LOWER(?) ORDER BY created_at DESC
-        `).bind(email.trim()).all();
+          FROM emails 
+          WHERE LOWER(recipient_email) = LOWER(?) OR (LOWER(sender_email) = LOWER(?) AND folder = 'sent')
+          ORDER BY created_at DESC
+        `).bind(email.trim(), email.trim()).all();
 
         return new Response(JSON.stringify({ emails: results.results || [] }), {
           headers: responseHeaders
@@ -309,7 +311,7 @@ export default {
       }
 
       // -----------------------------------------------------------------------
-      // Route: Send / Create email
+      // Route: Send / Create email (Single or Multi-Recipient)
       // -----------------------------------------------------------------------
       if (url.pathname === '/api/emails/send' && request.method === 'POST') {
         const authHeader = request.headers.get('Authorization') || '';
@@ -324,10 +326,20 @@ export default {
         }
 
         const body = await request.json();
-        const { to, subject, content } = body;
+        const { to, recipients, subject, content } = body;
 
-        if (!to || !subject) {
-          return new Response(JSON.stringify({ error: 'Thiếu người nhận hoặc tiêu đề thư' }), {
+        // Parse and deduplicate all recipients
+        let targetList = [];
+        if (Array.isArray(recipients) && recipients.length > 0) {
+          targetList = recipients.map(r => String(r).toLowerCase().trim());
+        } else if (typeof to === 'string') {
+          const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+          targetList = (to.match(emailRegex) || []).map(r => r.toLowerCase().trim());
+        }
+        targetList = Array.from(new Set(targetList));
+
+        if (targetList.length === 0 || !subject) {
+          return new Response(JSON.stringify({ error: 'Vui lòng cung cấp ít nhất một địa chỉ email người nhận hợp lệ và tiêu đề thư' }), {
             status: 400,
             headers: responseHeaders
           });
@@ -337,14 +349,16 @@ export default {
         const safeSubject = escapeHtml(subject);
         const safeSnippet = escapeHtml(content ? content.substring(0, 80) : '') + '...';
         const safeBody = `<div style="padding: 16px; font-family: sans-serif; line-height: 1.6;">${escapeHtml(content).replace(/\n/g, '<br>')}</div>`;
+        const toDisplay = targetList.join(', ');
 
+        // 1. Record sent email in sender's Outbox
         await env.DB.prepare(`
           INSERT INTO emails (id, user_id, recipient_email, sender_name, sender_email, subject, snippet, body_html, folder, is_read)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'sent', 1)
         `).bind(
           mailId,
           payload.userId,
-          to.trim().toLowerCase(),
+          toDisplay,
           payload.email.split('@')[0],
           payload.email,
           safeSubject,
@@ -352,7 +366,39 @@ export default {
           safeBody
         ).run();
 
-        return new Response(JSON.stringify({ success: true, id: mailId }), {
+        // 2. Direct internal delivery: If recipient exists in D1, drop mail directly into their inbox
+        let internalDeliveredCount = 0;
+        for (const rcpt of targetList) {
+          const destUser = await env.DB.prepare(`
+            SELECT id FROM users WHERE LOWER(email) = ?
+          `).bind(rcpt).first();
+
+          if (destUser) {
+            const inboundId = 'inbound-internal-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6);
+            await env.DB.prepare(`
+              INSERT INTO emails (id, user_id, recipient_email, sender_name, sender_email, subject, snippet, body_html, folder, is_read)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'inbox', 0)
+            `).bind(
+              inboundId,
+              destUser.id,
+              rcpt,
+              payload.email.split('@')[0],
+              payload.email,
+              safeSubject,
+              safeSnippet,
+              safeBody
+            ).run();
+            internalDeliveredCount++;
+          }
+        }
+
+        return new Response(JSON.stringify({
+          success: true,
+          id: mailId,
+          recipientsCount: targetList.length,
+          internalDelivered: internalDeliveredCount,
+          recipients: targetList
+        }), {
           headers: responseHeaders
         });
       }
