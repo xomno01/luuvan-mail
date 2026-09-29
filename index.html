@@ -319,6 +319,10 @@
     <!-- TOPBAR -->
     <header class="topbar">
       <div class="topbar-left">
+        <button class="mobile-menu-toggle" id="mobile-menu-toggle" aria-label="Mở menu hòm thư" title="Menu">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
+        </button>
+
         <a href="#" class="brand-badge" id="brand-link">
           <img src="/assets/mascot_luuvan.webp" alt="Lưu Vân Mail" class="brand-logo" id="app-logo" />
           <div class="brand-text">
@@ -357,6 +361,7 @@
             <!-- Rendered dynamically -->
           </div>
         </div>
+        <div class="dropdown-backdrop" id="dropdown-backdrop"></div>
 
         <button class="btn-signout" id="btn-signout" title="Đăng xuất khỏi hòm thư">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
@@ -368,7 +373,16 @@
     <!-- WEBMAIL BODY -->
     <div class="webmail-body">
       <!-- SIDEBAR -->
-      <aside class="sidebar">
+      <aside class="sidebar" id="sidebar">
+        <!-- Mobile Header inside drawer -->
+        <div class="sidebar-mobile-header">
+          <div class="sidebar-mobile-brand">
+            <img src="/assets/mascot_luuvan.webp" alt="Mascot" id="sidebar-mobile-avatar" width="32" height="32" />
+            <span>Danh mục hộp thư</span>
+          </div>
+          <button class="sidebar-close-btn" id="sidebar-close-btn" aria-label="Đóng menu">✕</button>
+        </div>
+
         <!-- Compose Button -->
         <button class="btn-compose" id="btn-compose-main">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
@@ -428,6 +442,7 @@
           </div>
         </div>
       </aside>
+      <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
 
       <!-- CONTENT AREA: MAIL LIST & READER -->
       <main class="content-area">
@@ -509,6 +524,12 @@
             </button>
           </div>
         </div>
+
+        <!-- Floating Action Button for Mobile Quick Compose -->
+        <button class="mobile-fab-compose" id="mobile-fab-compose" title="Soạn thư mới" aria-label="Soạn thư mới">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+          <span>Soạn thư</span>
+        </button>
       </main>
     </div>
   </div>

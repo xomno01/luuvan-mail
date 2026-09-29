@@ -1678,3 +1678,668 @@ body {
   color: #0f172a;
 }
 
+/* =========================================================================
+   RESPONSIVE DESIGN SYSTEM (MOBILE / TABLET / DESKTOP / ULTRA-WIDE)
+   Compliant with 2026 Mobile-First & Touch Usability Standards
+   ========================================================================= */
+
+/* Desktop defaults for mobile-only controls */
+.mobile-menu-toggle {
+  display: none;
+}
+
+.sidebar-mobile-header {
+  display: none;
+}
+
+.sidebar-backdrop {
+  display: none;
+}
+
+.mobile-fab-compose {
+  display: none;
+}
+
+.dropdown-backdrop {
+  display: none;
+}
+
+/* =========================================================================
+   TABLET & LAPTOP ADAPTATION (<= 1024px)
+   ========================================================================= */
+@media (max-width: 1024px) {
+  /* Show hamburger button */
+  .mobile-menu-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    color: var(--text-main);
+    cursor: pointer;
+    transition: background 0.15s ease;
+    flex-shrink: 0;
+  }
+
+  .mobile-menu-toggle:hover {
+    background: #f1f5f9;
+  }
+
+  .topbar-left {
+    min-width: auto;
+    gap: 8px;
+  }
+
+  /* Off-canvas Slide-over Sidebar Drawer */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 290px;
+    max-width: 85vw;
+    height: 100vh;
+    z-index: 1050;
+    background: white;
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: none;
+    border-right: 1px solid rgba(0, 0, 0, 0.08);
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+    box-shadow: 12px 0 40px rgba(0, 0, 0, 0.2);
+  }
+
+  /* Sidebar Mobile Header */
+  .sidebar-mobile-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 4px 14px;
+    margin-bottom: 12px;
+    border-bottom: 1.5px solid #f1f5f9;
+  }
+
+  .sidebar-mobile-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--font-heading);
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--theme-primary);
+  }
+
+  .sidebar-mobile-brand img {
+    border-radius: 50%;
+    object-fit: cover;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  }
+
+  .sidebar-close-btn {
+    background: #f1f5f9;
+    border: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    color: #64748b;
+    font-weight: 700;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+  }
+
+  .sidebar-close-btn:hover {
+    background: #e2e8f0;
+    color: #0f172a;
+  }
+
+  /* Sidebar Backdrop */
+  .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.45);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    z-index: 1040;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.25s ease, visibility 0.25s ease;
+    pointer-events: none;
+  }
+
+  .sidebar-backdrop.active {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+  }
+
+  /* Content area takes FULL 100% width on tablet/mobile */
+  .content-area {
+    width: 100%;
+    flex: 1;
+  }
+
+  /* Floating Compose Dialog adjustments */
+  .compose-window {
+    width: 480px;
+    max-width: 90vw;
+    right: 20px;
+  }
+}
+
+/* =========================================================================
+   MOBILE PHONES ADAPTATION (<= 768px)
+   ========================================================================= */
+@media (max-width: 768px) {
+  /* TOPBAR on Mobile */
+  .topbar {
+    height: 60px;
+    padding: 8px 12px;
+    gap: 8px;
+    position: relative;
+  }
+
+  .brand-logo {
+    width: 34px;
+    height: 34px;
+  }
+
+  .brand-text h1 {
+    font-size: 1.05rem;
+  }
+
+  .brand-text span {
+    display: none; /* Hide domain subtitle in brand on small header */
+  }
+
+  /* Search bar on mobile */
+  .topbar-search {
+    max-width: 180px;
+    flex: 1;
+  }
+
+  .search-input-wrapper {
+    padding: 6px 12px;
+    gap: 6px;
+  }
+
+  .search-input-wrapper input {
+    font-size: 0.82rem;
+  }
+
+  .search-input-wrapper input::placeholder {
+    font-size: 0.8rem;
+  }
+
+  /* Account Pill on Mobile */
+  .account-pill-btn {
+    padding: 4px 8px 4px 4px;
+    gap: 6px;
+  }
+
+  .account-pill-avatar {
+    width: 28px;
+    height: 28px;
+  }
+
+  .account-pill-info span {
+    display: none; /* Hide mascot label */
+  }
+
+  .account-pill-info strong {
+    font-size: 0.76rem;
+    max-width: 90px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Signout button icon-only on mobile */
+  .btn-signout {
+    padding: 7px;
+    width: 34px;
+    height: 34px;
+    justify-content: center;
+    border-radius: 50%;
+  }
+
+  .btn-signout span {
+    display: none;
+  }
+
+  /* Domain Switcher as Bottom Sheet on Mobile */
+  .domain-switcher-dropdown {
+    position: fixed;
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100vw;
+    border-radius: 24px 24px 0 0;
+    max-height: 82vh;
+    padding: 14px 14px calc(14px + env(safe-area-inset-bottom, 12px));
+    z-index: 2100;
+    box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.25);
+    transform: translateY(100%);
+    border-left: none;
+    border-right: none;
+    border-bottom: none;
+  }
+
+  .domain-switcher-dropdown.open {
+    transform: translateY(0);
+  }
+
+  .dropdown-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.45);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    z-index: 2050;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.25s ease;
+    pointer-events: none;
+  }
+
+  .dropdown-backdrop.active {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+  }
+
+  /* MAIL TOOLBAR */
+  .mail-toolbar {
+    padding: 8px 12px;
+    gap: 8px;
+  }
+
+  .toolbar-left {
+    gap: 6px;
+    overflow-x: auto;
+    flex: 1;
+    scrollbar-width: none;
+  }
+
+  .toolbar-left::-webkit-scrollbar {
+    display: none;
+  }
+
+  .filter-tabs {
+    gap: 4px;
+  }
+
+  .filter-tab-btn {
+    padding: 4px 10px;
+    font-size: 0.74rem;
+    white-space: nowrap;
+  }
+
+  .tool-icon-btn {
+    width: 30px;
+    height: 30px;
+    flex-shrink: 0;
+  }
+
+  #mail-count-label {
+    font-size: 0.72rem !important;
+    white-space: nowrap;
+  }
+
+  /* MAIL LIST ROW ADAPTED INTO RESPONSIVE CARD */
+  .mail-item-row {
+    display: grid;
+    grid-template-columns: 36px 1fr auto;
+    grid-template-areas:
+      "avatar sender date"
+      "avatar content content"
+      ".      meta   meta";
+    gap: 4px 10px;
+    padding: 12px 14px;
+    align-items: center;
+  }
+
+  .mail-avatar {
+    grid-area: avatar;
+    align-self: start;
+    margin-top: 2px;
+    width: 34px;
+    height: 34px;
+    font-size: 1.1rem;
+  }
+
+  .mail-sender {
+    grid-area: sender;
+    width: auto;
+    font-size: 0.88rem;
+    font-weight: 700;
+  }
+
+  .mail-date {
+    grid-area: date;
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    justify-self: end;
+  }
+
+  .mail-content-preview {
+    grid-area: content;
+    display: block;
+    white-space: normal;
+    overflow: visible;
+  }
+
+  .mail-subject {
+    display: block;
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--text-main);
+    line-height: 1.3;
+    margin-bottom: 2px;
+    word-break: break-word;
+  }
+
+  .mail-snippet {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    white-space: normal;
+    font-size: 0.8rem;
+    color: #64748b;
+    line-height: 1.35;
+  }
+
+  .mail-tag-badge {
+    font-size: 0.68rem;
+    padding: 2px 8px;
+    align-self: center;
+    margin-top: 4px;
+    display: inline-block;
+  }
+
+  .mail-star-btn {
+    font-size: 1.25rem;
+    padding: 4px;
+  }
+
+  /* MOBILE FAB COMPOSE BUTTON */
+  .mobile-fab-compose {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    position: fixed;
+    bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+    right: 18px;
+    z-index: 950;
+    background: var(--theme-primary, #6366f1);
+    color: white;
+    border: none;
+    padding: 13px 22px;
+    border-radius: 999px;
+    font-family: var(--font-heading);
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 10px 28px -4px var(--theme-glow, rgba(99, 102, 241, 0.5));
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .mobile-fab-compose:active {
+    transform: scale(0.96);
+  }
+
+  /* COMPOSE MODAL FULLSCREEN ON MOBILE */
+  .compose-window {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100dvh;
+    max-height: 100%;
+    border-radius: 0;
+    border: none;
+    z-index: 2000;
+    display: none;
+    flex-direction: column;
+    box-shadow: none;
+  }
+
+  .compose-window.open {
+    display: flex;
+  }
+
+  .compose-window.minimized {
+    height: 48px;
+    top: auto;
+    bottom: 0;
+  }
+
+  .compose-header {
+    height: 52px;
+    padding: 10px 16px;
+    border-radius: 0;
+  }
+
+  .compose-body {
+    flex: 1;
+    height: auto;
+    padding: 12px 14px;
+    overflow-y: auto;
+  }
+
+  .compose-row {
+    padding-bottom: 6px;
+    gap: 6px;
+  }
+
+  .compose-label {
+    width: 44px;
+    font-size: 0.8rem;
+  }
+
+  .compose-input {
+    font-size: 0.88rem;
+  }
+
+  .compose-textarea {
+    min-height: 180px;
+    font-size: 0.92rem;
+  }
+
+  .compose-footer {
+    padding: 10px 14px calc(10px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .btn-send-mail {
+    padding: 10px 20px;
+    font-size: 0.9rem;
+  }
+
+  /* READER VIEW ON MOBILE */
+  .mail-reader-view {
+    padding: 12px 14px;
+  }
+
+  .reader-back-btn {
+    padding: 8px 14px;
+    font-size: 0.85rem;
+    margin-bottom: 12px;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .reader-title-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .reader-title-row h2 {
+    font-size: 1.15rem;
+    line-height: 1.35;
+    word-break: break-word;
+  }
+
+  .reader-sender-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    padding-bottom: 14px;
+  }
+
+  .sender-profile-info {
+    width: 100%;
+  }
+
+  .sender-details {
+    width: calc(100% - 50px);
+  }
+
+  .sender-email-text, .to-email-text {
+    word-break: break-all;
+    font-size: 0.72rem;
+  }
+
+  .reader-body-content {
+    padding: 14px 0;
+    font-size: 0.9rem;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .reader-body-content img {
+    max-width: 100% !important;
+    height: auto !important;
+  }
+
+  .reader-actions-bar {
+    padding-top: 14px;
+    gap: 8px;
+  }
+
+  .reader-action-btn {
+    flex: 1;
+    justify-content: center;
+    padding: 10px;
+    font-size: 0.85rem;
+  }
+
+  /* AUTH CONTAINER ON MOBILE */
+  .auth-container {
+    padding: 16px 12px;
+  }
+
+  .auth-card {
+    padding: 24px 18px;
+    border-radius: 22px;
+  }
+
+  .auth-domain-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .auth-domain-card {
+    padding: 8px 10px;
+    gap: 8px;
+  }
+
+  .auth-domain-card img {
+    width: 32px;
+    height: 32px;
+  }
+
+  .auth-domain-card strong {
+    font-size: 0.76rem;
+  }
+
+  .auth-domain-card span {
+    font-size: 0.66rem;
+  }
+
+  .auth-info-section {
+    padding: 0 4px;
+  }
+
+  .auth-features-banner, .auth-faq-container {
+    padding: 20px 16px;
+    border-radius: 22px;
+  }
+
+  /* CUTE NEW MAIL POPUP MODAL ON MOBILE */
+  .new-mail-popup-card {
+    width: calc(100vw - 28px);
+    max-width: 380px;
+    padding: 24px 18px 20px;
+    border-radius: 24px;
+  }
+
+  .popup-mascot-img {
+    width: 72px;
+    height: 72px;
+  }
+
+  .popup-text-content h3 {
+    font-size: 1.1rem;
+    margin-bottom: 10px;
+  }
+
+  .popup-email-preview {
+    padding: 10px 12px;
+    margin-bottom: 16px;
+  }
+
+  .popup-actions-bar {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .btn-popup-view, .btn-popup-dismiss {
+    width: 100%;
+    padding: 11px;
+    font-size: 0.88rem;
+  }
+}
+
+/* =========================================================================
+   EXTRA COMPACT MOBILE SCREENS (<= 480px)
+   ========================================================================= */
+@media (max-width: 480px) {
+  .topbar {
+    padding: 6px 10px;
+  }
+
+  .brand-text h1 {
+    font-size: 0.95rem;
+  }
+
+  .topbar-search {
+    max-width: 130px;
+  }
+
+  .auth-domain-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .feature-domain-list {
+    grid-template-columns: 1fr;
+  }
+
+  .mail-item-row {
+    padding: 10px 12px;
+  }
+}
+
