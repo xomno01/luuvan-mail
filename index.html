@@ -553,6 +553,42 @@
     </form>
   </div>
 
+  <!-- CUTE NEW EMAIL NOTIFICATION POPUP MODAL -->
+  <div class="new-mail-modal-overlay" id="new-mail-modal-overlay">
+    <div class="new-mail-popup-card">
+      <div class="popup-sparkle-decor">✨</div>
+      <button class="popup-close-x" id="popup-close-x" title="Đóng">✕</button>
+      
+      <div class="popup-mascot-wrapper">
+        <img src="/assets/mascot_luuvan.webp" alt="Mascot" class="popup-mascot-img" id="popup-mascot-img" />
+        <span class="popup-mascot-badge" id="popup-mascot-badge">Thư mới!</span>
+      </div>
+
+      <div class="popup-text-content">
+        <h3 id="popup-heading">Ting ting! Bạn có thư mới kìa! 💌</h3>
+        <div class="popup-email-preview">
+          <div class="popup-sender-line">
+            <span class="popup-label">Từ:</span>
+            <strong id="popup-sender-name">Người gửi</strong>
+            <span id="popup-sender-email">&lt;email@example.com&gt;</span>
+          </div>
+          <div class="popup-subject-line">
+            <strong id="popup-subject">Tiêu đề email</strong>
+          </div>
+          <p class="popup-snippet" id="popup-snippet">Nội dung tóm tắt thư...</p>
+        </div>
+      </div>
+
+      <div class="popup-actions-bar">
+        <button class="btn-popup-view" id="btn-popup-view">
+          <span>Xem Thư Ngay ✨</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+        </button>
+        <button class="btn-popup-dismiss" id="btn-popup-dismiss">Để sau 🐾</button>
+      </div>
+    </div>
+  </div>
+
   <!-- TOAST NOTIFICATION -->
   <div class="toast-notice" id="toast-notice">
     <span id="toast-text">Thông báo</span>

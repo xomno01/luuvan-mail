@@ -98,6 +98,66 @@ function escapeHtml(str) {
     .replace(/'/g, '&#039;');
 }
 
+// Decode RFC 2047 MIME encoded-word headers (UTF-8 Q/B encoding)
+function decodeMimeWord(str) {
+  if (!str || typeof str !== 'string') return '';
+  const normalized = str.replace(/(\?=\s+(?==\?))/g, '?=');
+  return normalized.replace(/=\?([^?]+)\?([BQbq])\?([^?]+)\?=/g, (match, charset, encoding, text) => {
+    try {
+      const enc = encoding.toUpperCase();
+      if (enc === 'B') {
+        const binStr = atob(text);
+        const bytes = Uint8Array.from(binStr, c => c.charCodeAt(0));
+        return new TextDecoder(charset).decode(bytes);
+      } else if (enc === 'Q') {
+        const unescaped = text.replace(/_/g, ' ').replace(/=([A-Fa-f0-9]{2})/g, (_, hex) => {
+          return String.fromCharCode(parseInt(hex, 16));
+        });
+        const bytes = Uint8Array.from(unescaped, c => c.charCodeAt(0));
+        return new TextDecoder(charset).decode(bytes);
+      }
+    } catch {
+      return match;
+    }
+    return match;
+  });
+}
+
+// Clean MIME body extraction for incoming Cloudflare emails
+function extractCleanEmailContent(raw) {
+  if (!raw) return { snippet: '', html: '' };
+  
+  // Try to extract HTML body
+  const htmlMatch = raw.match(/Content-Type:\s*text\/html[^;]*;?[^\r\n]*\r?\n(?:[^\r\n]+\r?\n)*\r?\n([\s\S]*?)(?=(?:\r?\n--[^\r\n]+|\r?\n\.\r?\n|$))/i);
+  if (htmlMatch && htmlMatch[1]) {
+    const cleanHtml = htmlMatch[1].trim();
+    const plainText = cleanHtml.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    return {
+      snippet: plainText.substring(0, 100) + '...',
+      html: cleanHtml
+    };
+  }
+
+  // Try to extract plain text body
+  const textMatch = raw.match(/Content-Type:\s*text\/plain[^;]*;?[^\r\n]*\r?\n(?:[^\r\n]+\r?\n)*\r?\n([\s\S]*?)(?=(?:\r?\n--[^\r\n]+|\r?\n\.\r?\n|$))/i);
+  if (textMatch && textMatch[1]) {
+    const cleanText = textMatch[1].trim();
+    return {
+      snippet: cleanText.substring(0, 100).replace(/\r?\n/g, ' ') + '...',
+      html: `<div style="padding: 16px; font-family: sans-serif; line-height: 1.6; color: #1e293b;">${escapeHtml(cleanText).replace(/\n/g, '<br>')}</div>`
+    };
+  }
+
+  // Fallback: strip headers after double newline
+  const headerSplit = raw.split(/\r?\n\r?\n/);
+  const bodyContent = headerSplit.length > 1 ? headerSplit.slice(1).join('\n\n') : raw;
+  const cleanSnippet = bodyContent.substring(0, 100).replace(/\r?\n/g, ' ');
+  return {
+    snippet: cleanSnippet + '...',
+    html: `<div style="padding: 16px; font-family: sans-serif; line-height: 1.6; color: #1e293b;"><pre style="white-space: pre-wrap; font-family: sans-serif;">${escapeHtml(bodyContent.trim())}</pre></div>`
+  };
+}
+
 export default {
   // 1. HTTP API Handler
   async fetch(request, env) {
@@ -308,12 +368,16 @@ export default {
           });
         }
 
+        const usernamePrefix = reqUsername + '@%';
         const results = await env.DB.prepare(`
           SELECT id, user_id, recipient_email, sender_name, sender_email, sender_avatar, subject, snippet, body_html, folder, is_read, is_starred, tag, tag_color, created_at
           FROM emails 
-          WHERE LOWER(recipient_email) = LOWER(?) OR (LOWER(sender_email) = LOWER(?) AND folder = 'sent')
+          WHERE (user_id = ? AND user_id IS NOT NULL AND user_id != '')
+             OR LOWER(recipient_email) = LOWER(?)
+             OR (LOWER(sender_email) = LOWER(?) AND folder = 'sent')
+             OR (LOWER(recipient_email) LIKE LOWER(?))
           ORDER BY created_at DESC
-        `).bind(email.trim(), email.trim()).all();
+        `).bind(payload.id || '', email.trim(), email.trim(), usernamePrefix).all();
 
         return new Response(JSON.stringify({ emails: results.results || [] }), {
           headers: responseHeaders
@@ -419,13 +483,27 @@ export default {
 
         if (externalRecipients.length > 0) {
           const rawKeys = env.RESEND_API_KEYS || env.RESEND_API_KEY || '';
-          const apiKeys = rawKeys.split(/[,;\s]+/).map(k => k.trim()).filter(k => k.startsWith('re_'));
+          let keyMap = {};
+          try {
+            if (rawKeys.trim().startsWith('{')) {
+              keyMap = JSON.parse(rawKeys);
+            }
+          } catch {}
 
-          if (apiKeys.length > 0) {
+          const allKeyList = rawKeys.split(/["',;\s]+/).map(k => k.trim()).filter(k => k.startsWith('re_'));
+          const senderDomain = activeSenderEmail.split('@')[1]?.toLowerCase() || '';
+          const dedicatedKey = keyMap[senderDomain];
+
+          // Prioritize dedicated domain key, then fall back to remaining keys
+          const candidateKeys = dedicatedKey
+            ? [dedicatedKey, ...allKeyList.filter(k => k !== dedicatedKey)]
+            : allKeyList;
+
+          if (candidateKeys.length > 0) {
             const senderDisplayName = payload.username || payload.email.split('@')[0];
             let lastErrorMsg = '';
 
-            for (const apiKey of apiKeys) {
+            for (const apiKey of candidateKeys) {
               try {
                 const res = await fetch('https://api.resend.com/emails', {
                   method: 'POST',
@@ -504,34 +582,53 @@ export default {
       const sender = message.from;
       const subject = message.headers.get('subject') || '(Không có tiêu đề)';
       
-      // Read raw text
+      // Read raw email stream
       const rawBody = await new Response(message.raw).text();
-      
-      // Check if recipient exists in D1
-      const user = await env.DB.prepare(`
-        SELECT id FROM users WHERE LOWER(email) = ?
+      const parsed = extractCleanEmailContent(rawBody);
+
+      const recipientUserPart = recipient.split('@')[0].toLowerCase();
+      const recipientDomain = recipient.split('@')[1].toLowerCase();
+
+      // Find recipient user by full email or username
+      let user = await env.DB.prepare(`
+        SELECT id, email, username FROM users WHERE LOWER(email) = ?
       `).bind(recipient).first();
 
-      if (user) {
-        const mailId = 'inbound-' + Date.now();
-        const safeSubject = escapeHtml(subject);
-        const safeSnippet = escapeHtml(rawBody.substring(0, 100).replace(/\r?\n|\r/g, ' '));
-        const safeBody = `<pre style="white-space: pre-wrap; font-family: sans-serif;">${escapeHtml(rawBody)}</pre>`;
-
-        await env.DB.prepare(`
-          INSERT INTO emails (id, user_id, recipient_email, sender_name, sender_email, subject, snippet, body_html, folder, is_read)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'inbox', 0)
-        `).bind(
-          mailId,
-          user.id,
-          recipient,
-          escapeHtml(sender.split('<')[0].trim() || sender),
-          sender,
-          safeSubject,
-          safeSnippet,
-          safeBody
-        ).run();
+      if (!user && ALLOWED_DOMAINS.includes(recipientDomain)) {
+        user = await env.DB.prepare(`
+          SELECT id, email, username FROM users WHERE LOWER(username) = ?
+        `).bind(recipientUserPart).first();
       }
+
+      // If user not specifically registered yet, fallback to primary admin or first registered user
+      // so no incoming email is ever lost!
+      if (!user) {
+        user = await env.DB.prepare(`SELECT id, email, username FROM users ORDER BY created_at ASC LIMIT 1`).first();
+      }
+
+      const userId = user ? user.id : 'inbound-guest';
+      const mailId = 'inbound-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6);
+      const decodedSubject = decodeMimeWord(subject);
+      const safeSubject = escapeHtml(decodedSubject);
+      const rawSenderName = sender.split('<')[0].trim().replace(/^"/, '').replace(/"$/, '') || sender;
+      const decodedSenderName = decodeMimeWord(rawSenderName);
+      const senderDisplayName = escapeHtml(decodedSenderName);
+
+      await env.DB.prepare(`
+        INSERT INTO emails (id, user_id, recipient_email, sender_name, sender_email, subject, snippet, body_html, folder, is_read, tag, tag_color)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'inbox', 0, 'Hộp thư đến', '#ec4899')
+      `).bind(
+        mailId,
+        userId,
+        recipient,
+        senderDisplayName,
+        sender,
+        safeSubject,
+        parsed.snippet,
+        parsed.html
+      ).run();
+
+      console.log(`Inbound email received successfully: to=${recipient}, id=${mailId}`);
     } catch (err) {
       console.error('Email handling error:', err);
     }

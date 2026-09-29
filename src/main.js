@@ -86,29 +86,205 @@ function applyTheme(domainKey) {
   document.getElementById('compose-from-email').textContent = currentUser?.email || `user@${domainKey}`;
 }
 
-// Sync Cloud Emails
-async function syncCloudData() {
+// Web Audio API Sparkling Chime Synthesizer
+let audioCtx = null;
+function playCuteNotificationChime() {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    if (!audioCtx) {
+      audioCtx = new AudioCtx();
+    }
+    if (audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+
+    const now = audioCtx.currentTime;
+    // Sparkling bell arpeggio: C6 (1046.5Hz) -> E6 (1318.5Hz) -> G6 (1567.98Hz) -> C7 (2093Hz)
+    const chimeNotes = [
+      { freq: 1046.5, time: 0.00, dur: 0.35, gain: 0.16 },
+      { freq: 1318.5, time: 0.09, dur: 0.40, gain: 0.19 },
+      { freq: 1567.98, time: 0.18, dur: 0.45, gain: 0.22 },
+      { freq: 2093.00, time: 0.27, dur: 0.65, gain: 0.25 }
+    ];
+
+    chimeNotes.forEach(n => {
+      const osc = audioCtx.createOscillator();
+      const gainNode = audioCtx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(n.freq, now + n.time);
+
+      gainNode.gain.setValueAtTime(0.0001, now + n.time);
+      gainNode.gain.exponentialRampToValueAtTime(n.gain, now + n.time + 0.02);
+      gainNode.gain.exponentialRampToValueAtTime(0.0001, now + n.time + n.dur);
+
+      osc.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+
+      osc.start(now + n.time);
+      osc.stop(now + n.time + n.dur);
+    });
+  } catch (err) {
+    console.warn('Audio chime playback note:', err);
+  }
+}
+
+// Cute Notification Popup Modal
+let pendingPopupMail = null;
+
+function showCuteNewMailModal(mail) {
+  pendingPopupMail = mail;
+  const overlay = document.getElementById('new-mail-modal-overlay');
+  const mascotImg = document.getElementById('popup-mascot-img');
+  const mascotBadge = document.getElementById('popup-mascot-badge');
+  const senderName = document.getElementById('popup-sender-name');
+  const senderEmail = document.getElementById('popup-sender-email');
+  const subjectEl = document.getElementById('popup-subject');
+  const snippetEl = document.getElementById('popup-snippet');
+
+  const domainData = domainsData[mail.domain] || domainsData[currentUser?.domain] || domainsData['luuvan.online'];
+
+  if (mascotImg) mascotImg.src = domainData.mascot.avatar;
+  if (mascotBadge) mascotBadge.textContent = `${mail.domain || domainData.domain} 💌`;
+  if (senderName) senderName.textContent = mail.senderName || 'Người gửi';
+  if (senderEmail) senderEmail.textContent = mail.senderEmail ? `<${mail.senderEmail}>` : '';
+  if (subjectEl) subjectEl.textContent = mail.subject || '(Không có tiêu đề)';
+  if (snippetEl) snippetEl.textContent = mail.snippet || 'Nhấp vào để đọc toàn bộ nội dung thư...';
+
+  if (overlay) overlay.classList.add('open');
+
+  // Play sparkling chime sound
+  playCuteNotificationChime();
+
+  // Burst cute pastel confetti
+  try {
+    confetti({
+      particleCount: 75,
+      spread: 85,
+      origin: { y: 0.38 },
+      colors: ['#f472b6', '#c084fc', '#38bdf8', '#fbbf24', '#34d399']
+    });
+  } catch (err) {
+    // Ignore if not supported
+  }
+}
+
+function initNewMailPopup() {
+  const overlay = document.getElementById('new-mail-modal-overlay');
+  const closeBtn = document.getElementById('popup-close-x');
+  const dismissBtn = document.getElementById('btn-popup-dismiss');
+  const viewBtn = document.getElementById('btn-popup-view');
+
+  function closePopup() {
+    if (overlay) overlay.classList.remove('open');
+    pendingPopupMail = null;
+  }
+
+  if (closeBtn) closeBtn.addEventListener('click', closePopup);
+  if (dismissBtn) dismissBtn.addEventListener('click', closePopup);
+  if (overlay) {
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) closePopup();
+    });
+  }
+
+  if (viewBtn) {
+    viewBtn.addEventListener('click', () => {
+      if (!pendingPopupMail) {
+        closePopup();
+        return;
+      }
+      const mailToOpen = pendingPopupMail;
+      closePopup();
+
+      // If email belongs to another domain in the ecosystem, switch to that domain first
+      if (currentUser && mailToOpen.domain && mailToOpen.domain !== currentUser.domain) {
+        const updated = switchActiveDomain(mailToOpen.domain);
+        if (updated) {
+          currentUser = updated;
+          emails = JSON.parse(localStorage.getItem(getStorageKey(currentUser.email))) || defaultEmails;
+          applyTheme(currentUser.domain);
+        }
+      }
+
+      currentFolder = 'inbox';
+      currentFilter = 'all';
+      renderMailList();
+      openReaderView(mailToOpen.id);
+    });
+  }
+}
+
+// Inbound Poller & Seen Tracker
+const seenMailIds = new Set();
+let isInitialSyncDone = false;
+let pollingIntervalTimer = null;
+
+// Sync Cloud Emails with Real-time Inbound Detection
+async function syncCloudData(notifyNew = false) {
   if (!currentUser?.email) return;
   try {
     const cloudMails = await fetchCloudEmails(currentUser.email);
-    if (cloudMails && cloudMails.length > 0) {
-      // Merge unique cloud emails with local emails
-      const existingIds = new Set(emails.map(m => m.id));
-      let added = 0;
-      for (const cm of cloudMails) {
-        if (!existingIds.has(cm.id)) {
-          emails.unshift(cm);
-          existingIds.add(cm.id);
-          added++;
+    if (!cloudMails || cloudMails.length === 0) return;
+
+    // Seed seenMailIds on first sync so existing emails don't trigger false alerts
+    if (!isInitialSyncDone) {
+      emails.forEach(m => seenMailIds.add(m.id));
+      cloudMails.forEach(cm => seenMailIds.add(cm.id));
+      isInitialSyncDone = true;
+    }
+
+    const existingIds = new Set(emails.map(m => m.id));
+    let newlyArrivedInboxMails = [];
+    let addedCount = 0;
+
+    for (const cm of cloudMails) {
+      const isBrandNew = !existingIds.has(cm.id) && !seenMailIds.has(cm.id);
+      if (!existingIds.has(cm.id)) {
+        emails.unshift(cm);
+        existingIds.add(cm.id);
+        addedCount++;
+      }
+
+      if (isBrandNew) {
+        seenMailIds.add(cm.id);
+        if (cm.folder === 'inbox' && !cm.read) {
+          newlyArrivedInboxMails.push(cm);
         }
       }
-      if (added > 0) {
-        saveEmails();
-        renderMailList();
-      }
+    }
+
+    if (addedCount > 0) {
+      saveEmails();
+      renderMailList();
+    }
+
+    // Trigger popup + chime if new unread mail arrived
+    if (notifyNew && newlyArrivedInboxMails.length > 0) {
+      const latestMail = newlyArrivedInboxMails[0];
+      showCuteNewMailModal(latestMail);
+      showToast(`💌 Bạn nhận được thư mới từ ${latestMail.senderName || 'Người gửi'}!`);
     }
   } catch (err) {
     console.warn('Sync cloud error:', err);
+  }
+}
+
+function startInboundMailPoller() {
+  if (pollingIntervalTimer) clearInterval(pollingIntervalTimer);
+  // Poll every 7 seconds
+  pollingIntervalTimer = setInterval(() => {
+    if (currentUser?.email) {
+      syncCloudData(true);
+    }
+  }, 7000);
+}
+
+function stopInboundMailPoller() {
+  if (pollingIntervalTimer) {
+    clearInterval(pollingIntervalTimer);
+    pollingIntervalTimer = null;
   }
 }
 
@@ -125,8 +301,14 @@ async function setAuthState(user) {
     applyTheme(user.domain);
     closeReaderView();
     renderMailList();
-    await syncCloudData();
+    seenMailIds.clear();
+    isInitialSyncDone = false;
+    await syncCloudData(false);
+    startInboundMailPoller();
   } else {
+    stopInboundMailPoller();
+    seenMailIds.clear();
+    isInitialSyncDone = false;
     authGate.style.display = 'flex';
     webmailApp.classList.remove('active');
   }
@@ -771,7 +953,21 @@ document.addEventListener('DOMContentLoaded', async () => {
   initAuthGate();
   initCompose();
   initDomainSwitcher();
+  initNewMailPopup();
   setupEvents();
+
+  // Instant check when switching tabs back to the webmail app
+  window.addEventListener('focus', () => {
+    if (currentUser?.email) {
+      syncCloudData(true);
+    }
+  });
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && currentUser?.email) {
+      syncCloudData(true);
+    }
+  });
 
   // Check existing session
   const session = getSession();

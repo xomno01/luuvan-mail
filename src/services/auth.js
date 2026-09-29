@@ -276,18 +276,47 @@ export async function fetchCloudEmails(email) {
           mailDomain = row.recipient_email.split('@')[1];
         }
 
+        const decodeMime = (str) => {
+          if (!str || typeof str !== 'string') return '';
+          const normalized = str.replace(/(\?=\s+(?==\?))/g, '?=');
+          return normalized.replace(/=\?([^?]+)\?([BQbq])\?([^?]+)\?=/g, (match, charset, encoding, text) => {
+            try {
+              const enc = encoding.toUpperCase();
+              if (enc === 'B') {
+                const binStr = atob(text);
+                const bytes = Uint8Array.from(binStr, c => c.charCodeAt(0));
+                return new TextDecoder(charset).decode(bytes);
+              } else if (enc === 'Q') {
+                const unescaped = text.replace(/_/g, ' ').replace(/=([A-Fa-f0-9]{2})/g, (_, hex) => {
+                  return String.fromCharCode(parseInt(hex, 16));
+                });
+                const bytes = Uint8Array.from(unescaped, c => c.charCodeAt(0));
+                return new TextDecoder(charset).decode(bytes);
+              }
+            } catch {
+              return match;
+            }
+            return match;
+          });
+        };
+
+        const rawSubject = row.subject || '(Không có tiêu đề)';
+        const cleanSubject = decodeMime(rawSubject);
+        const rawSender = row.sender_name || 'Người gửi';
+        const cleanSender = decodeMime(rawSender);
+
         return {
           id: row.id,
           domain: mailDomain,
           folder: row.folder || 'inbox',
           starred: Boolean(row.is_starred),
           read: Boolean(row.is_read),
-          senderName: row.sender_name || 'Người gửi',
+          senderName: cleanSender,
           senderEmail: row.sender_email || '',
           recipientEmail: row.recipient_email || '',
           senderAvatar: row.sender_avatar || (row.folder === 'sent' ? '📤' : '✉️'),
-          subject: row.subject || '(Không có tiêu đề)',
-          snippet: row.snippet || '',
+          subject: cleanSubject,
+          snippet: decodeMime(row.snippet || ''),
           tag: row.tag || (row.folder === 'sent' ? 'Đã gửi' : 'Hộp thư'),
           tagColor: row.tag_color || (row.folder === 'sent' ? '#6366f1' : '#ec4899'),
           date: new Date(row.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),

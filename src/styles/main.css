@@ -1465,3 +1465,216 @@ body {
   text-decoration: underline;
 }
 
+/* CUTE NEW EMAIL NOTIFICATION POPUP MODAL */
+.new-mail-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.new-mail-modal-overlay.open {
+  opacity: 1;
+  visibility: visible;
+}
+
+.new-mail-popup-card {
+  position: relative;
+  width: 90%;
+  max-width: 440px;
+  background: rgba(255, 255, 255, 0.98);
+  border-radius: 28px;
+  border: 2px solid var(--theme-primary-light, #e0e7ff);
+  box-shadow: 0 24px 60px -12px rgba(99, 102, 241, 0.25), 0 8px 24px rgba(0, 0, 0, 0.08);
+  padding: 32px 28px 24px;
+  text-align: center;
+  transform: scale(0.85) translateY(20px);
+  transition: transform 0.32s cubic-bezier(0.34, 1.56, 0.64, 1);
+  overflow: hidden;
+}
+
+.new-mail-modal-overlay.open .new-mail-popup-card {
+  transform: scale(1) translateY(0);
+}
+
+.popup-sparkle-decor {
+  position: absolute;
+  top: 14px;
+  left: 20px;
+  font-size: 1.4rem;
+  animation: mini-bounce 2s infinite ease-in-out;
+}
+
+.popup-close-x {
+  position: absolute;
+  top: 16px;
+  right: 18px;
+  background: #f1f5f9;
+  border: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  font-size: 0.9rem;
+  font-weight: 700;
+  transition: all 0.15s;
+}
+
+.popup-close-x:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+  transform: rotate(90deg);
+}
+
+.popup-mascot-wrapper {
+  position: relative;
+  display: inline-block;
+  margin-bottom: 12px;
+}
+
+.popup-mascot-img {
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid white;
+  box-shadow: 0 8px 24px -4px var(--theme-glow, rgba(99, 102, 241, 0.3));
+  animation: mascot-float 3s ease-in-out infinite alternate;
+}
+
+@keyframes mascot-float {
+  0% { transform: translateY(0px) rotate(-2deg); }
+  100% { transform: translateY(-8px) rotate(2deg); }
+}
+
+.popup-mascot-badge {
+  position: absolute;
+  bottom: 0px;
+  right: -8px;
+  background: #ec4899;
+  color: white;
+  font-family: var(--font-heading);
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 2px solid white;
+  box-shadow: 0 2px 6px rgba(236, 72, 153, 0.4);
+}
+
+.popup-text-content h3 {
+  font-family: var(--font-heading);
+  font-size: 1.25rem;
+  color: #1e1b4b;
+  margin-bottom: 14px;
+}
+
+.popup-email-preview {
+  background: var(--theme-primary-light, #f8fafc);
+  border-radius: 16px;
+  padding: 14px 16px;
+  text-align: left;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  margin-bottom: 20px;
+}
+
+.popup-sender-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+
+.popup-sender-line .popup-label {
+  color: #64748b;
+  font-weight: 600;
+}
+
+.popup-sender-line strong {
+  color: #0f172a;
+}
+
+.popup-sender-line span {
+  color: #64748b;
+  font-size: 0.76rem;
+}
+
+.popup-subject-line strong {
+  display: block;
+  font-family: var(--font-heading);
+  font-size: 0.95rem;
+  color: #0f172a;
+  margin-bottom: 4px;
+}
+
+.popup-snippet {
+  font-size: 0.82rem;
+  color: #475569;
+  line-height: 1.5;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.popup-actions-bar {
+  display: flex;
+  gap: 12px;
+}
+
+.btn-popup-view {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--theme-primary, #6366f1);
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 999px;
+  font-family: var(--font-heading);
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 8px 20px -4px var(--theme-glow, rgba(99, 102, 241, 0.4));
+  transition: all 0.2s;
+}
+
+.btn-popup-view:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px -4px var(--theme-glow, rgba(99, 102, 241, 0.5));
+}
+
+.btn-popup-dismiss {
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  color: #475569;
+  padding: 12px 18px;
+  border-radius: 999px;
+  font-family: var(--font-heading);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-popup-dismiss:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
