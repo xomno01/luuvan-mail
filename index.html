@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lưu Vân Mail — Dịch Vụ Webmail Đa Miền Chuyên Nghiệp (luuvan.online)</title>
+  <meta name="description" content="Hệ thống Webmail cá nhân và công việc bảo mật, phong cách Pastel Kawaii kết nối 4 tên miền riêng." />
+  <link rel="icon" type="image/webp" href="/assets/mascot_luuvan.webp" />
+  <link rel="stylesheet" href="/src/styles/main.css" />
+</head>
+<body>
+  <!-- =========================================================================
+       1. CỔNG ĐĂNG NHẬP / ĐĂNG KÝ BẮT BUỘC (AUTH GATE)
+       ========================================================================= -->
+  <div class="auth-gate-container" id="auth-gate-container">
+    <div class="auth-card">
+      <div class="auth-header">
+        <div class="auth-header-mascots">
+          <img src="/assets/mascot_luuvan.webp" alt="Luna" class="mascot-avatar-circle" title="Mèo Luna (@luuvan.online)" />
+          <img src="/assets/mascot_aetherix.webp" alt="Aether" class="mascot-avatar-circle" title="Mèo Aether (@aetherix.site)" />
+          <img src="/assets/mascot_chotroi.webp" alt="Kuma" class="mascot-avatar-circle" title="Gấu Kuma (@chotroi.site)" />
+          <img src="/assets/mascot_bunny.webp" alt="Midori" class="mascot-avatar-circle" title="Thỏ Midori (@aadidass.tokyo)" />
+        </div>
+        <h2>Lưu Vân Mail ✨</h2>
+        <p>Hệ sinh thái Webmail đa miền chuyên nghiệp & bảo mật</p>
+      </div>
+
+      <!-- Auth Tabs: Đăng Nhập / Đăng Ký -->
+      <div class="auth-tabs">
+        <button class="auth-tab-btn active" id="tab-login-btn">Đăng Nhập</button>
+        <button class="auth-tab-btn" id="tab-register-btn">Đăng Ký Mới</button>
+      </div>
+
+      <!-- FORM ĐĂNG NHẬP -->
+      <form id="form-login">
+        <div class="auth-form-group">
+          <label>Địa chỉ Email của bạn</label>
+          <div class="auth-input-box">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+            <input type="email" id="login-email" placeholder="ví dụ: loc@luuvan.online" required autocomplete="email" />
+          </div>
+        </div>
+
+        <div class="auth-form-group">
+          <label>Mật khẩu</label>
+          <div class="auth-input-box">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <input type="password" id="login-password" placeholder="Nhập mật khẩu hòm thư..." required autocomplete="current-password" />
+          </div>
+        </div>
+
+        <button type="submit" class="btn-auth-submit" style="margin-top: 20px;">
+          <span>Đăng Nhập Hộp Thư 🚀</span>
+        </button>
+
+        <div class="auth-footer-help">
+          Chưa có email riêng? <a href="#" id="link-to-register">Bấm vào đây để đăng ký tài khoản mới</a>
+          <p style="margin-top: 6px; font-size: 0.76rem; color: #94a3b8;">(Tài khoản mẫu: <strong>loc@luuvan.online</strong> / Mật khẩu: <strong>123456</strong>)</p>
+        </div>
+      </form>
+
+      <!-- FORM ĐĂNG KÝ MỚI -->
+      <form id="form-register" style="display: none;">
+        <div class="auth-form-group">
+          <label>Tên tài khoản mong muốn</label>
+          <div class="auth-input-box">
+            <input type="text" id="reg-username" placeholder="ví dụ: vinhloc, devpro, gamer99" required autocomplete="username" />
+            <span class="auth-input-suffix" id="reg-domain-suffix">@luuvan.online</span>
+          </div>
+        </div>
+
+        <div class="auth-form-group">
+          <label>Chọn Tên Miền & Linh Vật Hộ Mệnh</label>
+          <div class="auth-domain-grid">
+            <div class="auth-domain-card selected" data-domain="luuvan.online" data-mascot-name="Mèo Luna (Tri thức & Dev)" data-mascot-avatar="/assets/mascot_luuvan.webp">
+              <img src="/assets/mascot_luuvan.webp" alt="Luna" />
+              <div>
+                <strong>luuvan.online</strong>
+                <span>📚 Tri thức & Dev</span>
+              </div>
+            </div>
+
+            <div class="auth-domain-card" data-domain="aetherix.site" data-mascot-name="Mèo Aether (AI & Cloud)" data-mascot-avatar="/assets/mascot_aetherix.webp">
+              <img src="/assets/mascot_aetherix.webp" alt="Aether" />
+              <div>
+                <strong>aetherix.site</strong>
+                <span>💼 Công việc & AI</span>
+              </div>
+            </div>
+
+            <div class="auth-domain-card" data-domain="chotroi.site" data-mascot-name="Gấu Kuma (MMO)" data-mascot-avatar="/assets/mascot_chotroi.webp">
+              <img src="/assets/mascot_chotroi.webp" alt="Kuma" />
+              <div>
+                <strong>chotroi.site</strong>
+                <span>💰 Giao dịch MMO</span>
+              </div>
+            </div>
+
+            <div class="auth-domain-card" data-domain="aadidass.tokyo" data-mascot-name="Thỏ Midori (Game)" data-mascot-avatar="/assets/mascot_bunny.webp">
+              <img src="/assets/mascot_bunny.webp" alt="Midori" />
+              <div>
+                <strong>aadidass.tokyo</strong>
+                <span>🎮 Game & Giải trí</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="auth-form-group">
+          <label>Mật khẩu bảo vệ hộp thư</label>
+          <div class="auth-input-box">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <input type="password" id="reg-password" placeholder="Tối thiểu 6 ký tự..." required minlength="6" autocomplete="new-password" />
+          </div>
+        </div>
+
+        <button type="submit" class="btn-auth-submit" style="margin-top: 20px;">
+          <span>Khởi Tạo Hòm Thư & Bắt Đầu Sử Dụng ✨</span>
+        </button>
+
+        <div class="auth-footer-help">
+          Đã có tài khoản? <a href="#" id="link-to-login">Quay lại Đăng nhập</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       2. GIAO DIỆN WEBMAIL CHÍNH (CHỈ HIỂN THỊ KHI ĐÃ ĐĂNG NHẬP)
+       ========================================================================= -->
+  <div class="webmail-app" id="webmail-app">
+    <!-- TOPBAR -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <a href="#" class="brand-badge" id="brand-link">
+          <img src="/assets/mascot_luuvan.webp" alt="Lưu Vân Mail" class="brand-logo" id="app-logo" />
+          <div class="brand-text">
+            <h1 id="app-title">Lưu Vân Mail</h1>
+            <span id="active-domain-badge">luuvan.online</span>
+          </div>
+        </a>
+      </div>
+
+      <!-- Topbar Center Search -->
+      <div class="topbar-search">
+        <div class="search-input-wrapper">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          <input type="text" id="search-input" placeholder="Tìm kiếm trong hộp thư (tiêu đề, người gửi, nội dung)..." autocomplete="off" />
+        </div>
+      </div>
+
+      <!-- Topbar Right Actions -->
+      <div class="topbar-right">
+        <div class="account-pill-btn">
+          <img src="/assets/mascot_luuvan.webp" alt="Account Avatar" class="account-pill-avatar" id="account-avatar" />
+          <div class="account-pill-info">
+            <strong id="account-display-name">loc@luuvan.online</strong>
+            <span id="account-mascot-label">Mèo Luna (Tri thức & Dev)</span>
+          </div>
+        </div>
+
+        <button class="btn-signout" id="btn-signout" title="Đăng xuất khỏi hòm thư">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
+          <span>Đăng Xuất</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- WEBMAIL BODY -->
+    <div class="webmail-body">
+      <!-- SIDEBAR -->
+      <aside class="sidebar">
+        <!-- Compose Button -->
+        <button class="btn-compose" id="btn-compose-main">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+          <span>Soạn thư</span>
+        </button>
+
+        <!-- Folders List -->
+        <div class="nav-group-title">Hộp Thư</div>
+        
+        <div class="folder-item active" data-folder="inbox">
+          <div class="folder-item-left">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+            <span>Hộp thư đến</span>
+          </div>
+          <span class="badge-unread" id="inbox-unread-badge">0</span>
+        </div>
+
+        <div class="folder-item" data-folder="starred">
+          <div class="folder-item-left">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <span>Có gắn dấu sao</span>
+          </div>
+          <span id="starred-badge" style="font-size: 0.8rem; color: #f59e0b; font-weight: 700;"></span>
+        </div>
+
+        <div class="folder-item" data-folder="sent">
+          <div class="folder-item-left">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+            <span>Đã gửi</span>
+          </div>
+        </div>
+
+        <div class="folder-item" data-folder="trash">
+          <div class="folder-item-left">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+            <span>Thùng rác</span>
+          </div>
+        </div>
+
+        <!-- Sidebar Mascot Interactive Card -->
+        <div class="sidebar-mascot-card" id="sidebar-mascot-card" title="Bấm vào tớ để nghe lời nhắn dễ thương!">
+          <img src="/assets/mascot_luuvan.webp" alt="Mascot" class="sidebar-mascot-img" id="sidebar-mascot-img" />
+          <div class="sidebar-mascot-text">
+            <strong id="sidebar-mascot-name">Mèo Luna</strong>
+            <p id="sidebar-mascot-quote">Hộp thư an toàn 100%!</p>
+          </div>
+        </div>
+
+        <!-- Storage Meter -->
+        <div class="storage-meter">
+          <div class="storage-labels">
+            <span>Dung lượng đã dùng</span>
+            <strong>1.2 GB / 15 GB</strong>
+          </div>
+          <div class="storage-bar-bg">
+            <div class="storage-bar-fill"></div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- CONTENT AREA: MAIL LIST & READER -->
+      <main class="content-area">
+        <!-- Toolbar -->
+        <div class="mail-toolbar">
+          <div class="toolbar-left">
+            <button class="tool-icon-btn" id="btn-refresh" title="Làm mới hộp thư">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg>
+            </button>
+            <button class="tool-icon-btn" id="btn-mark-all-read" title="Đánh dấu tất cả đã đọc">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </button>
+
+            <!-- Filter Tabs -->
+            <div class="filter-tabs">
+              <button class="filter-tab-btn active" data-filter="all">Tất cả</button>
+              <button class="filter-tab-btn" data-filter="unread">Chưa đọc</button>
+              <button class="filter-tab-btn" data-filter="starred">Có sao ⭐</button>
+            </div>
+          </div>
+
+          <div class="toolbar-right">
+            <span id="mail-count-label" style="font-size: 0.85rem; color: var(--text-muted); font-weight: 600;">Đang tải...</span>
+          </div>
+        </div>
+
+        <!-- Mail List View -->
+        <div class="mail-list-container" id="mail-list-container">
+          <!-- Rendered dynamically -->
+        </div>
+
+        <!-- Mail Reader View -->
+        <div class="mail-reader-view" id="mail-reader-view">
+          <div class="reader-header">
+            <button class="reader-back-btn" id="reader-back-btn">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+              <span>Quay lại Hộp thư đến</span>
+            </button>
+
+            <div class="reader-title-row">
+              <h2 id="reader-subject">Tiêu đề thư</h2>
+              <span class="mail-tag-badge" id="reader-tag-badge">Tri thức</span>
+            </div>
+
+            <div class="reader-sender-row">
+              <div class="sender-profile-info">
+                <div class="sender-avatar-large" id="reader-sender-avatar">📖</div>
+                <div class="sender-details">
+                  <strong id="reader-sender-name">Lưu Vân Thư Quán</strong>
+                  <span id="reader-sender-email">bantin@luuvan.online</span>
+                </div>
+              </div>
+
+              <div style="display: flex; align-items: center; gap: 12px;">
+                <span id="reader-date" style="font-size: 0.85rem; color: var(--text-muted);">07:00 AM</span>
+                <button class="mail-star-btn" id="reader-star-btn" title="Gắn dấu sao">★</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="reader-body-content" id="reader-body-content">
+            <!-- Mail HTML Body -->
+          </div>
+
+          <div class="reader-actions-bar">
+            <button class="reader-action-btn" id="reader-reply-btn">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
+              <span>Trả lời</span>
+            </button>
+            <button class="reader-action-btn" id="reader-delete-btn" style="color: #ef4444; border-color: #fecdd3;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+              <span>Xóa thư</span>
+            </button>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- FLOATING COMPOSE WINDOW (GMAIL STYLE) -->
+  <div class="compose-window" id="compose-window">
+    <div class="compose-header" id="compose-header">
+      <h4>Thư mới ✨</h4>
+      <div class="compose-header-actions">
+        <button class="compose-header-btn" id="compose-min-btn" title="Thu nhỏ">−</button>
+        <button class="compose-header-btn" id="compose-close-btn" title="Đóng">✕</button>
+      </div>
+    </div>
+
+    <form id="compose-form" style="display: flex; flex-direction: column; flex: 1;">
+      <div class="compose-body">
+        <div class="compose-row">
+          <span class="compose-label">Từ:</span>
+          <span class="compose-from-badge" id="compose-from-email">loc@luuvan.online</span>
+        </div>
+        <div class="compose-row">
+          <span class="compose-label">Đến:</span>
+          <input type="email" class="compose-input" id="compose-to" placeholder="nguoinhan@gmail.com" required />
+        </div>
+        <div class="compose-row">
+          <span class="compose-label">Tiêu đề:</span>
+          <input type="text" class="compose-input" id="compose-subject" placeholder="Tiêu đề email..." required />
+        </div>
+        <textarea class="compose-textarea" id="compose-body" placeholder="Soạn nội dung thư ở đây..."></textarea>
+      </div>
+
+      <div class="compose-footer">
+        <button type="submit" class="btn-send-mail">
+          <span>Gửi ngay</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+        </button>
+
+        <button type="button" class="tool-icon-btn" id="compose-trash-btn" title="Hủy thư">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/></svg>
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- TOAST NOTIFICATION -->
+  <div class="toast-notice" id="toast-notice">
+    <span id="toast-text">Thông báo</span>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

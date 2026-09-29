@@ -1,0 +1,11 @@
+name = "pastelmail"
+main = "src/worker.js"
+compatibility_date = "2026-09-01"
+
+[assets]
+directory = "dist"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "pastelmail-db"
+database_id = "a03eef8c-6d8b-45ac-8cbb-70b41d2f440b"
