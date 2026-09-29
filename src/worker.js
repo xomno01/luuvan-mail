@@ -392,11 +392,51 @@ export default {
           }
         }
 
+        // 3. Outbound Internet Relay (to external Gmail, Outlook, Yahoo, etc.)
+        let externalRelaySuccess = false;
+        let externalNotice = '';
+        const externalRecipients = targetList.filter(rcpt => !ALLOWED_DOMAINS.some(d => rcpt.endsWith('@' + d)));
+
+        if (externalRecipients.length > 0) {
+          if (env.RESEND_API_KEY) {
+            try {
+              const resendRes = await fetch('https://api.resend.com/emails', {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${env.RESEND_API_KEY}`,
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  from: `${payload.username} <${payload.email}>`,
+                  to: externalRecipients,
+                  subject: safeSubject,
+                  html: safeBody
+                })
+              });
+              if (resendRes.ok) {
+                externalRelaySuccess = true;
+                externalNotice = `Đã chuyển tiếp thư thật tới ${externalRecipients.length} hòm thư ngoài internet!`;
+              } else {
+                const resendErr = await resendRes.text();
+                console.error('Resend relay error:', resendErr);
+                externalNotice = 'Chưa chuyển tiếp được tới hòm thư ngoài do cấu hình Resend.';
+              }
+            } catch (rErr) {
+              console.error('Outbound relay exception:', rErr);
+            }
+          } else {
+            externalNotice = 'Thư đã lưu trong mục Đã gửi. Để gửi thật tới Gmail người ngoài, cần gắn RESEND_API_KEY trên Cloudflare.';
+          }
+        }
+
         return new Response(JSON.stringify({
           success: true,
           id: mailId,
           recipientsCount: targetList.length,
           internalDelivered: internalDeliveredCount,
+          externalRecipientsCount: externalRecipients.length,
+          externalRelaySuccess,
+          notice: externalNotice,
           recipients: targetList
         }), {
           headers: responseHeaders

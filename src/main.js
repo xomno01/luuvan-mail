@@ -317,9 +317,10 @@ function initCompose() {
 
     // Send via Cloudflare API if token exists
     const token = getAuthToken();
+    let apiFeedback = null;
     if (token) {
       try {
-        await fetch('/api/emails/send', {
+        const apiRes = await fetch('/api/emails/send', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -327,6 +328,9 @@ function initCompose() {
           },
           body: JSON.stringify({ to: toDisplay, recipients, subject, content: body })
         });
+        if (apiRes.ok) {
+          apiFeedback = await apiRes.json();
+        }
       } catch (err) {
         console.warn('Backend send email notice:', err);
       }
@@ -369,11 +373,19 @@ function initCompose() {
       colors: ['#fbcfe8', '#e0e7ff', '#fef3c7', '#d1fae5']
     });
 
-    const successMsg = recipients.length > 1
-      ? `Đã gửi thư thành công tới ${recipients.length} người nhận! 🚀`
-      : `Đã gửi email thành công tới ${recipients[0]}! 🚀`;
+    let finalToastMsg = recipients.length > 1
+      ? `Đã gửi thư tới ${recipients.length} người nhận! 🚀`
+      : `Đã gửi email tới ${recipients[0]}! 🚀`;
 
-    showToast(successMsg);
+    if (apiFeedback?.externalRecipientsCount > 0) {
+      if (apiFeedback.externalRelaySuccess) {
+        finalToastMsg += ' ✨ (Đã chuyển tiếp tới Gmail thật)';
+      } else {
+        finalToastMsg += ' ℹ️ (Đã lưu vào mục Đã gửi. Để bay vào Gmail ngoài đời cần gắn Resend API)';
+      }
+    }
+
+    showToast(finalToastMsg);
     renderMailList();
   });
 }
