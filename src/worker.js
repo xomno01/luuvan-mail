@@ -398,37 +398,52 @@ export default {
         const externalRecipients = targetList.filter(rcpt => !ALLOWED_DOMAINS.some(d => rcpt.endsWith('@' + d)));
 
         if (externalRecipients.length > 0) {
-          if (env.RESEND_API_KEY) {
-            try {
-              const senderDisplayName = payload.username || payload.email.split('@')[0];
-              const resendRes = await fetch('https://api.resend.com/emails', {
-                method: 'POST',
-                headers: {
-                  'Authorization': `Bearer ${env.RESEND_API_KEY}`,
-                  'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                  from: `${senderDisplayName} <${payload.email}>`,
-                  to: externalRecipients,
-                  subject: safeSubject,
-                  html: safeBody
-                })
-              });
-              if (resendRes.ok) {
-                externalRelaySuccess = true;
-                externalNotice = `Đã chuyển tiếp thư thật tới ${externalRecipients.length} hòm thư ngoài internet!`;
-              } else {
-                const resendErr = await resendRes.text();
-                console.error('Resend relay error:', resendErr);
-                try {
-                  const errJson = JSON.parse(resendErr);
-                  externalNotice = errJson.message || 'Lỗi gửi từ Resend';
-                } catch {
-                  externalNotice = 'Chưa chuyển tiếp được tới hòm thư ngoài do cấu hình Resend.';
+          const rawKeys = env.RESEND_API_KEYS || env.RESEND_API_KEY || '';
+          const apiKeys = rawKeys.split(/[,;\s]+/).map(k => k.trim()).filter(k => k.startsWith('re_'));
+
+          if (apiKeys.length > 0) {
+            const senderDisplayName = payload.username || payload.email.split('@')[0];
+            let lastErrorMsg = '';
+
+            for (const apiKey of apiKeys) {
+              try {
+                const res = await fetch('https://api.resend.com/emails', {
+                  method: 'POST',
+                  headers: {
+                    'Authorization': `Bearer ${apiKey}`,
+                    'Content-Type': 'application/json'
+                  },
+                  body: JSON.stringify({
+                    from: `${senderDisplayName} <${payload.email}>`,
+                    to: externalRecipients,
+                    subject: safeSubject,
+                    html: safeBody
+                  })
+                });
+
+                if (res.ok) {
+                  externalRelaySuccess = true;
+                  externalNotice = `Đã chuyển tiếp thư thật tới ${externalRecipients.length} hòm thư ngoài internet!`;
+                  break; // Succeeded with this key, stop pool iteration
+                } else {
+                  const resendErr = await res.text();
+                  console.warn(`Resend key ${apiKey.substring(0, 8)}... error:`, resendErr);
+                  try {
+                    const errJson = JSON.parse(resendErr);
+                    lastErrorMsg = errJson.message || 'Lỗi gửi từ Resend';
+                  } catch {
+                    lastErrorMsg = 'Lỗi gửi từ Resend';
+                  }
+                  // Continue to next backup key if available
                 }
+              } catch (rErr) {
+                console.warn(`Outbound relay exception on key ${apiKey.substring(0, 8)}...:`, rErr);
+                lastErrorMsg = rErr.message;
               }
-            } catch (rErr) {
-              console.error('Outbound relay exception:', rErr);
+            }
+
+            if (!externalRelaySuccess) {
+              externalNotice = lastErrorMsg || 'Chưa chuyển tiếp được tới hòm thư ngoài do cấu hình Resend.';
             }
           } else {
             externalNotice = 'Thư đã lưu trong mục Đã gửi. Để gửi thật tới Gmail người ngoài, cần gắn RESEND_API_KEY trên Cloudflare.';
