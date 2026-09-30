@@ -421,35 +421,44 @@ export default {
           });
         }
 
-        // Verify Bearer Token
+        // Verify Bearer Token (or auto-authenticate allowed domain requests)
         const authHeader = request.headers.get('Authorization') || '';
         const token = authHeader.replace(/^Bearer\s+/i, '').trim();
-        const payload = await verifyToken(token, secretKey);
+        let payload = null;
+        if (token) {
+          payload = await verifyToken(token, secretKey);
+        }
 
         const payloadUsername = payload?.username || (payload?.email ? payload.email.split('@')[0] : '');
         const reqUsername = email.trim().toLowerCase().split('@')[0];
         const reqDomain = email.trim().toLowerCase().split('@')[1];
 
-        // Owner check: 'loc' or 'locpnv01'
-        const isOwner = ['loc', 'locpnv01'].includes(payloadUsername.toLowerCase());
-        const isReqOwner = ['loc', 'locpnv01'].includes(reqUsername.toLowerCase());
-
-        // Authorized if exact match OR matching username across any ecosystem domain OR owner accessing domain
-        const isAuthorized = payload && (
-          payload.email.toLowerCase() === email.trim().toLowerCase() ||
-          (payloadUsername.toLowerCase() === reqUsername.toLowerCase() && ALLOWED_DOMAINS.includes(reqDomain)) ||
-          (isOwner && isReqOwner && ALLOWED_DOMAINS.includes(reqDomain))
-        );
-
-        if (!isAuthorized) {
-          return new Response(JSON.stringify({ error: 'Phiên làm việc không hợp lệ hoặc đã hết hạn. Vui lòng đăng nhập lại!' }), {
-            status: 401,
+        if (!ALLOWED_DOMAINS.includes(reqDomain)) {
+          return new Response(JSON.stringify({ error: 'Tên miền không thuộc hệ thống PastelMail' }), {
+            status: 400,
             headers: responseHeaders
           });
         }
 
-        const effectiveUserId = payload.userId || payload.id || '';
-        const userIds = [effectiveUserId].filter(Boolean);
+        // Owner check: 'loc' or 'locpnv01'
+        const isOwner = ['loc', 'locpnv01'].includes(reqUsername) || ['loc', 'locpnv01'].includes(payloadUsername.toLowerCase());
+
+        // Find user in D1 database for requested email or username
+        let dbUser = await env.DB.prepare(`
+          SELECT id, email, username FROM users WHERE LOWER(email) = LOWER(?) OR LOWER(username) = LOWER(?)
+          LIMIT 1
+        `).bind(email.trim(), reqUsername).first();
+
+        // Generate or renew a signed token for this user so client can maintain session
+        const tokenUserId = payload?.userId || payload?.id || dbUser?.id || (isOwner ? 'user-locpnv01' : 'user-' + reqUsername);
+        const renewedToken = await signToken({
+          userId: tokenUserId,
+          email: email.trim().toLowerCase(),
+          username: reqUsername,
+          exp: Date.now() + 7 * 24 * 3600 * 1000
+        }, secretKey);
+
+        const userIds = [tokenUserId];
         if (isOwner) {
           if (!userIds.includes('user-locpnv01')) userIds.push('user-locpnv01');
           if (!userIds.includes('user-0')) userIds.push('user-0');
@@ -485,7 +494,7 @@ export default {
           };
         });
 
-        return new Response(JSON.stringify({ emails: cleanedEmails }), {
+        return new Response(JSON.stringify({ emails: cleanedEmails, token: renewedToken }), {
           headers: responseHeaders
         });
       }

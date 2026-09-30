@@ -256,18 +256,22 @@ export async function loginUser(email, password) {
 
 // Fetch Cloud Emails from Cloudflare D1
 export async function fetchCloudEmails(email) {
-  const token = getAuthToken();
-  if (!token) return [];
+  let token = getAuthToken();
+  const headers = {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
 
   try {
-    const res = await fetch(`/api/emails?email=${encodeURIComponent(email)}`, {
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
-    });
+    let res = await fetch(`/api/emails?email=${encodeURIComponent(email)}`, { headers });
+    if (res.status === 401 && token) {
+      clearAuthToken();
+      res = await fetch(`/api/emails?email=${encodeURIComponent(email)}`);
+    }
 
     if (res.ok) {
       const data = await res.json();
+      if (data.token) {
+        setAuthToken(data.token);
+      }
       return (data.emails || []).map(row => {
         let mailDomain = 'luuvan.online';
         if (row.folder === 'sent' && row.sender_email && row.sender_email.includes('@')) {

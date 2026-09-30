@@ -228,6 +228,9 @@ async function syncCloudData(notifyNew = false) {
     const cloudMails = await fetchCloudEmails(currentUser.email);
     if (!cloudMails || cloudMails.length === 0) return;
 
+    // Filter out mock placeholder emails if real cloud emails are available
+    emails = emails.filter(m => !m.id.startsWith('mail-'));
+
     // Seed seenMailIds on first sync so existing emails don't trigger false alerts
     if (!isInitialSyncDone) {
       emails.forEach(m => seenMailIds.add(m.id));
@@ -255,10 +258,8 @@ async function syncCloudData(notifyNew = false) {
       }
     }
 
-    if (addedCount > 0) {
-      saveEmails();
-      renderMailList();
-    }
+    saveEmails();
+    renderMailList();
 
     // Trigger popup + chime if new unread mail arrived
     if (notifyNew && newlyArrivedInboxMails.length > 0) {
